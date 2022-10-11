@@ -20,7 +20,7 @@ var compiledPatterns []*regexp.Regexp
 const MAX_LINES = int(1e4)
 const CMD_SIZE = int(85)
 
-var cmdSize = make(map[string]int, CMD_SIZE)
+var cmd = make(map[string]models.Instruction, CMD_SIZE)
 var directives = []string{"db", "org", "ds", "equ"}
 
 func main() {
@@ -30,9 +30,24 @@ func main() {
 		return
 	}
 
-	pattternsFile, err := os.Open("patterns.txt")
+	f1, err := os.Create("file1.txt")
 	if err != nil {
-		log.Fatalln("Error opening file with patterns, please provide such file")
+		panic(err)
+	}
+	defer f1.Close()
+
+	f2, err := os.Create("file2.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer f2.Close()
+
+	infoLogger := log.New(f1, "", 0)
+	outLogger := log.New(f2, "", 0)
+
+	pattternsFile, err := os.Open("patterns.txt") //get all patterns
+	if err != nil {
+		outLogger.Fatalln("Error opening file with patterns, please provide such file")
 	}
 	defer pattternsFile.Close()
 	patternScanner := bufio.NewScanner(pattternsFile)
@@ -42,34 +57,34 @@ func main() {
 		patterns = append(patterns, strings.Split(lin, " - ")[0])
 		indicator = append(indicator, strings.Split(lin, " - ")[1])
 	}
-	for _, val := range patterns {
+	for _, val := range patterns { //compile the Patterns
 		compiledPatterns = append(compiledPatterns, regexp.MustCompile(val))
 	}
-	// for i, val := range compiledPatterns {
-	// 	fmt.Printf("%d. %v - %s\n", i, val, indicator[i])
-	// }
-	fmt.Println()
-
-	cmdSizeFile, err := os.Open("cmd_size.txt")
+	for i, val := range compiledPatterns { //print all patterns
+		outLogger.Printf("%d. %v - %s\n", i, val, indicator[i])
+	}
+	cmdSizeFile, err := os.Open("cmd_size.txt") //open file with instructions
 	if err != nil {
-		log.Fatalln("Error opening file with command size, please provide such file")
+		outLogger.Fatalln("Error opening file with command size, please provide such file")
 	}
 	defer cmdSizeFile.Close()
 	cmdSizeScanner := bufio.NewScanner(cmdSizeFile)
 	for cmdSizeScanner.Scan() {
 		linSplited := strings.Split(cmdSizeScanner.Text(), ",")
-		intVal, _ := strconv.Atoi(linSplited[1])
-		cmdSize[linSplited[0]] = intVal
+		cmdSize, _ := strconv.Atoi(linSplited[1])
+		cmdName := linSplited[0]
+		cmdOpcode := linSplited[2]
+		cmd[cmdName] = models.Instruction{Opcode: cmdOpcode, Size: cmdSize}
 	}
-	// for key, val := range cmdSize {
-	// 	fmt.Printf("%s -> %d\n", key, val)
-	// }
+	for k, val := range cmd {
+		fmt.Printf("%s -> %v\n", k, val)
+	}
 	//open the file
 	inputFile, err := os.Open(os.Args[1])
 
 	// handle errors while opening
 	if err != nil {
-		log.Fatalf("Error when opening file: %s\n", err)
+		outLogger.Fatalf("Error when opening file: %s\n", err)
 	}
 	defer inputFile.Close() // defer to close file as soon as main ends execution
 
@@ -105,66 +120,66 @@ func main() {
 					m[names[j]] = result[0][j]
 				}
 				linesMatched[countLine-1] = m
-				// fmt.Printf("\nnames -> %v\n", names)
-				// fmt.Printf("result -> %v\n", result)
-				// fmt.Printf("mapa M -> %v\n", m)
 			}
 		}
 		if !hasAnyMatch {
-			log.Fatalf("Invalid syntax at line %d\n", countLine)
+			outLogger.Fatalf("Invalid syntax at line %d\n", countLine)
 		}
 	}
 	// handle first encountered error while reading
 	if err := fileScanner.Err(); err != nil {
-		log.Fatalf("Error while reading file %s\n", err)
+		outLogger.Fatalf("Error while reading file %s\n", err)
 	}
-	fmt.Printf("\nTotal de linhas = %d\n", countLine)
+	infoLogger.Printf("Total line count = %d\n", countLine)
 	for i := 0; i < countLine; i++ {
-		fmt.Printf("%d. %v\n", i, linesMatched[i])
+		infoLogger.Printf("%d. %v\n", i+1, linesMatched[i])
 	}
 
 	var mnemonicAdress []models.Mnemonic
 	var labels []models.Label
 	var mark int = 0
 
-	fmt.Printf("\n checando as linhas\n")
-	for i := 0; i < countLine; i++ {
+	infoLogger.Printf("\nNow check for mnemonic and label validity\n")
+	for i := 0; i < countLine; i++ { // check mnemonic and label validity
+		infoLogger.Print("\n")
 		ml := linesMatched[i]
-		fmt.Printf("%d. %v\n", i, ml)
+		infoLogger.Printf("Checking line %d...", i+1)
 		if _, isEmpty := ml["empty"]; isEmpty {
-			fmt.Printf("linha %d vazia\n", i)
+			infoLogger.Printf("-> Empty Line\n")
 			continue
 		}
 		if val, ok := ml["label"]; ok {
 			labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[:len(val)-1]})
+			infoLogger.Printf("-> Valid Label\n")
 		}
-		if val, ok := ml["mnemonic"]; ok { // checks if mnemonic exists
-			if val1, ok1 := cmdSize[val]; ok1 { // check if is an valid mnemonic
-				mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + val1 - 1, Nline: i, Name: val})
-				mark += val1
-				// if dir && val == "org" && validOp1(ml["op1"]) {
-				// 	mark = val1
-				// }
-				fmt.Printf("valido mnemonico\n")
+		if val, ok := ml["mnemonic"]; ok { // checks if mnemonic exists in line
+			if val1, ok1 := cmd[val]; ok1 { // check if is an valid mnemonic
+				mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + val1.Size - 1, Nline: i, Name: val})
+				mark += val1.Size
+				infoLogger.Printf("-> Valid Mnemonic\n")
 			} else {
 				if dir := check.IsDirective(directives, val); dir {
 					mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
 					mark++
+					if dir && val == "org" && check.IsValidAddress(ml["op1"], labels) {
+						mark = check.GetIntegerValue(ml["op1"], 16)
+					}
+					infoLogger.Printf("-> Valid Directive\n")
 					continue
 				}
-				log.Fatalf("Invalid mnemonic at line %d\n", i+1)
+				outLogger.Fatalf("Invalid mnemonic at line %d\n", i+1)
 			}
 		}
 	}
-	fmt.Printf("\nNúmero de endereços:\n")
+	infoLogger.Printf("\nListing adresses:\n")
 	for i, val := range mnemonicAdress {
-		fmt.Printf("%d. %d até %d -> %s\n", i, val.Start, val.End, val.Name)
+		infoLogger.Printf("%d. %d até %d -> %s\n", i+1, val.Start, val.End, val.Name)
 	}
-	fmt.Printf("\nRelacao de labels:\n")
+	infoLogger.Printf("\nListing labels:\n")
 	for i, val := range labels {
-		fmt.Printf("%d. %xh -> %s\n", i, val.Address, val.Name)
+		infoLogger.Printf("%d. %xh -> %s\n", i+1, val.Address, val.Name)
 	}
 
-	fmt.Printf("\nTeste de funcao\n")
-	fmt.Printf("%v\n", check.IsDecimalData("258"))
+	infoLogger.Printf("\nTeste de funcao\n")
+	infoLogger.Printf("%v\n", check.IsHexData("5", 2))
 }

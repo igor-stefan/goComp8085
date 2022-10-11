@@ -12,3 +12,8 @@ type Mnemonic struct {
 	Nline int
 	Name  string
 }
+
+type Instruction struct {
+	Size   int
+	Opcode string
+}
