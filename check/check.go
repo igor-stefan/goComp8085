@@ -104,15 +104,18 @@ func IsValidAddress(a string, v []models.Label) bool {
 func GetIntegerValue(a string, hasToFit int) (x int) {
 	a = strings.ToLower(a)
 	x = -1
-	if strings.HasPrefix(a, "0x") {
-		if x, err := strconv.ParseInt(a[2:], 16, hasToFit); err == nil {
+	if strings.HasPrefix(a, "0x") || strings.HasPrefix(a, "0b") {
+		if x, err := strconv.ParseInt(a[2:], 10, hasToFit); err == nil {
 			return int(x)
 		}
 	}
-	if strings.HasSuffix(a, "h") {
-		if x, err := strconv.ParseInt(a[0:len(a)-1], 16, hasToFit); err == nil {
+	if strings.HasSuffix(a, "h") || strings.HasSuffix(a, "o") || strings.HasSuffix(a, "q") || strings.HasSuffix(a, "v") {
+		if x, err := strconv.ParseInt(a[0:len(a)-1], 10, hasToFit); err == nil {
 			return int(x)
 		}
+	}
+	if x, err := strconv.ParseInt(a, 10, hasToFit); err == nil {
+		return int(x)
 	}
 	return x
 }

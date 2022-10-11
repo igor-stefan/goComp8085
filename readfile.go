@@ -130,6 +130,7 @@ func main() {
 	if err := fileScanner.Err(); err != nil {
 		outLogger.Fatalf("Error while reading file %s\n", err)
 	}
+	infoLogger.Printf("#Listing all lines and mapped values\n\n")
 	infoLogger.Printf("Total line count = %d\n", countLine)
 	for i := 0; i < countLine; i++ {
 		infoLogger.Printf("%d. %v\n", i+1, linesMatched[i])
@@ -139,7 +140,7 @@ func main() {
 	var labels []models.Label
 	var mark int = 0
 
-	infoLogger.Printf("\nNow check for mnemonic and label validity\n")
+	infoLogger.Printf("\n#Now check for mnemonic and label validity\n")
 	for i := 0; i < countLine; i++ { // check mnemonic and label validity
 		infoLogger.Print("\n")
 		ml := linesMatched[i]
@@ -160,9 +161,11 @@ func main() {
 			} else {
 				if dir := check.IsDirective(directives, val); dir {
 					mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
-					mark++
 					if dir && val == "org" && check.IsValidAddress(ml["op1"], labels) {
 						mark = check.GetIntegerValue(ml["op1"], 16)
+						infoLogger.Printf("-> Memory Address changed by org directive -> New address is %d (base 10)", mark)
+					} else {
+						mark++
 					}
 					infoLogger.Printf("-> Valid Directive\n")
 					continue
@@ -171,15 +174,15 @@ func main() {
 			}
 		}
 	}
-	infoLogger.Printf("\nListing adresses:\n")
+	infoLogger.Printf("\n#Listing addresses:\n")
 	for i, val := range mnemonicAdress {
-		infoLogger.Printf("%d. %d até %d -> %s\n", i+1, val.Start, val.End, val.Name)
+		infoLogger.Printf("%d. %d to %d -> %s\n", i+1, val.Start, val.End, val.Name)
 	}
-	infoLogger.Printf("\nListing labels:\n")
+	infoLogger.Printf("\n#Listing labels:\n")
 	for i, val := range labels {
 		infoLogger.Printf("%d. %xh -> %s\n", i+1, val.Address, val.Name)
 	}
 
-	infoLogger.Printf("\nTeste de funcao\n")
-	infoLogger.Printf("%v\n", check.IsHexData("5", 2))
+	infoLogger.Printf("\nQuickly testing function\n")
+	infoLogger.Printf("Returned value -> %v\n", check.IsHexData("0xff5", 8))
 }
