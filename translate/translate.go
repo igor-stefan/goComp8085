@@ -78,7 +78,7 @@ func Opcoderp(opcode string, operand string, regmap map[string]string) (ret stri
 	return
 }
 
-func Opcodeccc(opcode string, operand string, regmap map[string]string) (ret string, err error) {
+func Opcodeccc(opcode string, operand string) (ret string, err error) {
 	a := strings.ToLower(operand)
 	ret = ""
 	err = nil
@@ -118,15 +118,64 @@ func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models
 	var f2 bool = check.IsValidData(b, lbl, 8) == nil
 	if f1 && f2 {
 		ret[0] = strings.Replace(opcode, "DDD", regmap[a], 1)
-		ret[1], _ = check.GetBinaryString(b)
+		ret[1], _ = check.GetBinaryString(b, 8)
 	} else {
 		if !f1 && !f2 {
-			err = fmt.Errorf("registers %q and %q are invalid. please use registers A through E, H, L or M", operand1, operand2)
+			err = fmt.Errorf("register %q and data %q are both invalid. please use registers A through E, H, L or M. data must be in range 0 to 255 inclusive", operand1, operand2)
 		} else if !f2 {
-			err = fmt.Errorf("register %q is invalid. please use registers A through E, H, L or M", operand2)
+			err = fmt.Errorf("operand %q is invalid. check syntax and remember that it must fit in 8 bit uinteger (range 0 to 255 inclusive)", operand2)
 		} else {
 			err = fmt.Errorf("register %q is invalid. please use registers A through E, H, L or M", operand1)
 		}
+	}
+	return
+}
+
+func Opcodelhdata(opcode string, operand1 string, lbl []models.Label) (ret [3]string, err error) {
+	a := strings.ToLower(operand1)
+	ret[0] = ""
+	ret[1] = ""
+	ret[2] = ""
+	err = nil
+	var f1 bool = check.IsValidData(a, lbl, 16) == nil
+	if f1 {
+		temp, _ := check.GetBinaryString(a, 16)
+		if idx := check.IsValidLabel(lbl, a); idx > -1 {
+			temp = fmt.Sprintf("%016b", lbl[idx].Address)
+		}
+		ret[0] = opcode
+		ret[1] = temp[8:16]
+		ret[2] = temp[0:8]
+	} else {
+		err = fmt.Errorf("operand %q is invalid. check syntax. remember that it must fit in 16 bit uinteger", operand1)
+	}
+	return
+}
+
+func Opcodedata(opcode string, operand1 string, lbl []models.Label) (ret [2]string, err error) {
+	a := strings.ToLower(operand1)
+	ret[0] = ""
+	ret[1] = ""
+	err = nil
+	var f1 bool = check.IsValidData(a, lbl, 8) == nil
+	if f1 {
+		temp, _ := check.GetBinaryString(a, 8)
+		if idx := check.IsValidLabel(lbl, a); idx > -1 {
+			temp = fmt.Sprintf("%08b", lbl[idx].Address)
+		}
+		ret[0] = opcode
+		ret[1] = temp
+	} else {
+		err = fmt.Errorf("operand %q is invalid. check syntax.\nremember that it must fit in 16 bit uinteger", operand1)
+	}
+	return
+}
+
+func Opcode(mnemonic, operand string) (err error) {
+	if operand != "" {
+		err = fmt.Errorf("operand for instruction %q must not exist", mnemonic)
+	} else {
+		err = nil
 	}
 	return
 }

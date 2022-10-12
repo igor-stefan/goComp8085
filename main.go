@@ -11,20 +11,27 @@ import (
 
 	"github.com/igor-stefan/compiladorAssembly8085/check"
 	"github.com/igor-stefan/compiladorAssembly8085/models"
+	"github.com/igor-stefan/compiladorAssembly8085/translate"
 )
 
+// var indicator []string
 var patterns []string
-var indicator []string
 var compiledPatterns []*regexp.Regexp
 
-const MAX_LINES = int(1e4)
-const CMD_SIZE = int(85)
+const MAX_LINES = int(1e4) // constat for max lines in code to be compiled
+const CMD_SIZE = int(85)   // constant for map size
 
-var cmd = make(map[string]models.Instruction, CMD_SIZE)
+var cmd = make(map[string]models.Instruction, CMD_SIZE) // all instructions information
 var directives = []string{"db", "org", "ds", "equ"}
+
+// mapping register values
 var regsd = make(map[string]string, 10)
 var regrp = make(map[string]string, 4)
 var regr = make(map[string]string, 2)
+
+var outText []string   // all lines of compiled code
+var errorText []string // all errors generated in compilation time
+var numErrors int = 0  // counter for errors
 
 func init() {
 	// initialize Regr map
@@ -48,92 +55,92 @@ func init() {
 func main() {
 	// check if it has a file to be compiled
 	if len(os.Args) < 2 {
-		fmt.Println("Missing parameter, provide file name.")
+		log.Fatalln("Missing parameter, provide assembly code file name.")
 		return
 	}
 
-	f1, err := os.Create("file1.txt")
+	f1, err := os.Create("compilationLog.txt") // create log file
 	if err != nil {
-		panic(err)
+		panic(err) // throw error if case
 	}
-	defer f1.Close()
+	defer f1.Close() // remember to close
 
-	f2, err := os.Create("file2.txt")
+	f2, err := os.Create("machineCode.txt") // create output file
 	if err != nil {
-		panic(err)
+		panic(err) // throw error if case
 	}
-	defer f2.Close()
+	defer f2.Close() // remember to close
 
 	infoLogger := log.New(f1, "", 0)
 	outLogger := log.New(f2, "", 0)
 
-	outLogger.Printf("Mapa reg r -> %v", regr)
+	// outLogger.Printf("Mapa reg r -> %v", regr)
 
-	pattternsFile, err := os.Open("patterns.txt") //get all patterns
+	pattternsFile, err := os.Open("patterns.txt") //get all patterns from file
 	if err != nil {
-		outLogger.Fatalln("Error opening file with patterns, please provide such file")
+		log.Fatal("Error while opening file with patterns, please provide such file")
 	}
-	defer pattternsFile.Close()
+	defer pattternsFile.Close() // remember to close the file after compilation
 	patternScanner := bufio.NewScanner(pattternsFile)
-
 	for patternScanner.Scan() {
 		lin := patternScanner.Text()
 		patterns = append(patterns, strings.Split(lin, " - ")[0])
-		indicator = append(indicator, strings.Split(lin, " - ")[1])
+		// indicator = append(indicator, strings.Split(lin, " - ")[1])
 	}
+
 	for _, val := range patterns { //compile the Patterns
 		compiledPatterns = append(compiledPatterns, regexp.MustCompile(val))
 	}
-	for i, val := range compiledPatterns { //print all patterns
-		outLogger.Printf("%d. %v - %s\n", i, val, indicator[i])
-	}
-	cmdSizeFile, err := os.Open("cmd_size.txt") //open file with instructions
+	// for i, val := range compiledPatterns { //print all patterns
+	// 	infoLogger.Printf("%d. %v - %s\n", i, val, indicator[i])
+	// }
+
+	cmdSizeFile, err := os.Open("cmd_size.txt") //open file with instructions, opcode and size
 	if err != nil {
-		outLogger.Fatalln("Error opening file with command size, please provide such file")
+		log.Fatalln("Error while opening file with instructions, size and opcode, please provide such file")
 	}
-	defer cmdSizeFile.Close()
-	cmdSizeScanner := bufio.NewScanner(cmdSizeFile)
+	defer cmdSizeFile.Close()                       // remember to close the file after compilation
+	cmdSizeScanner := bufio.NewScanner(cmdSizeFile) // use constructor to create a scanner
 	for cmdSizeScanner.Scan() {
-		linSplited := strings.Split(cmdSizeScanner.Text(), ",")
+		linSplited := strings.Split(cmdSizeScanner.Text(), ",") // the file is comma separated
 		cmdSize, _ := strconv.Atoi(linSplited[1])
 		cmdName := linSplited[0]
 		cmdOpcode := linSplited[2]
 		cmdTranslator, _ := strconv.Atoi(linSplited[3])
 		cmd[cmdName] = models.Instruction{Opcode: cmdOpcode, Size: cmdSize, Translator: cmdTranslator}
 	}
-	for k, val := range cmd {
-		fmt.Printf("%s -> %v\n", k, val)
-	}
-	//open the file
-	inputFile, err := os.Open(os.Args[1])
+	// for k, val := range cmd { // logs all info got from file
+	// 	infoLogger.Printf("%s -> %v\n", k, val)
+	// }
 
-	// handle errors while opening
-	if err != nil {
-		outLogger.Fatalf("Error when opening file: %s\n", err)
-	}
-	defer inputFile.Close() // defer to close file as soon as main ends execution
+	inputFile, err := os.Open(os.Args[1]) //open file with assembly code
 
+	if err != nil { // handle errors while opening
+		log.Fatalf("Error while opening file: %s\n", err)
+	}
+	defer inputFile.Close()                              // defer to close file as soon as main ends execution
 	fileScanner := bufio.NewScanner(inputFile)           //  constructor
 	fileScanner.Split(bufio.ScanLines)                   // configure how the scanner behaves
-	var countLine int = 0                                // counter of lines to display error messages if any
-	linesMatched := make([]map[string]string, MAX_LINES) // to construct
-	for fileScanner.Scan() {                             // read line by line
+	var countLine int = 0                                // counter of lines for control
+	linesMatched := make([]map[string]string, MAX_LINES) // to get all capture groups from regex
+
+	infoLogger.Printf("#Checking pattern match\n\n")
+	for fileScanner.Scan() { // read line by line
 		countLine++
-		lin := strings.ToLower(fileScanner.Text()) // lowercase all string
-		fmt.Println(strings.TrimRight(lin, "\t ")) // remove white spaces in the right
-		if lin == "" {                             // if line is empty, skip
-			// fmt.Print("skip empty line\n")
-			m := map[string]string{}
+		// lin := strings.ToLower(fileScanner.Text())
+		lin := fileScanner.Text()
+		// fmt.Println(strings.TrimRight(lin, "\t ")) // remove white spaces in the right
+		m := map[string]string{}
+		if lin == "" { // if line is empty, skip
 			m["empty"] = "1"
 			linesMatched[countLine-1] = m
 			continue
 		}
-		var hasAnyMatch bool = false // flag to check if the line has a valid syntax
-		for numPattern, val := range compiledPatterns {
-			names := val.SubexpNames()
-			matched := val.MatchString(lin)
+		var hasAnyMatch bool = false                    // flag to check if the line has a valid syntax
+		for numPattern, val := range compiledPatterns { // check whitch pattern matches with line
+			names := val.SubexpNames()      // get capture group names
+			matched := val.MatchString(lin) // try to match
 			if matched {
-				m := map[string]string{}
 				hasAnyMatch = true
 				if numPattern > 6 {
 					m["empty"] = "1"
@@ -148,22 +155,24 @@ func main() {
 			}
 		}
 		if !hasAnyMatch {
-			outLogger.Fatalf("Invalid syntax at line %d\n", countLine)
+			numErrors++
+			errorText = append(errorText, fmt.Sprintf("At line %d: Invalid syntax\n", countLine))
+			infoLogger.Printf("Invalid syntax encountered at line %d\n", countLine)
 		}
 	}
 	// handle first encountered error while reading
 	if err := fileScanner.Err(); err != nil {
-		outLogger.Fatalf("Error while reading file %s\n", err)
+		log.Fatalf("Error while reading file %s\n", err)
 	}
+	infoLogger.Printf("Total line count = %d\n\n", countLine)
 	infoLogger.Printf("#Listing all lines and mapped values\n\n")
-	infoLogger.Printf("Total line count = %d\n", countLine)
 	for i := 0; i < countLine; i++ {
 		infoLogger.Printf("%d. %v\n", i+1, linesMatched[i])
 	}
 
 	var mnemonicAdress []models.Mnemonic
-	var labels []models.Label
-	var mark int = 0
+	var labels []models.Label // armazenate all labels
+	var mark int = 0          // marks number of address
 
 	infoLogger.Printf("\n#Now check for mnemonic and label validity\n")
 	for i := 0; i < countLine; i++ { // check mnemonic and label validity
@@ -176,16 +185,17 @@ func main() {
 		}
 		val, hasLabel := ml["label"]
 		if hasLabel {
-			labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[:len(val)-1]})
+			labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[0 : len(val)-1]})
 			infoLogger.Printf("-> Valid Label\n")
 		}
-		if val, ok := ml["mnemonic"]; ok { // checks if mnemonic exists in line
-			if val1, ok1 := cmd[val]; ok1 { // check if is an valid mnemonic
+		if val, exists := ml["mnemonic"]; exists { // checks if mnemonic exists in line
+			lowerCaseVal := strings.ToLower(val)
+			if val1, valid := cmd[lowerCaseVal]; valid { // check if is an valid mnemonic
 				mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + val1.Size - 1, Nline: i, Name: val})
 				mark += val1.Size
 				infoLogger.Printf("-> Valid Mnemonic\n")
-			} else { // If it is not valid mnemonic, it can be a directive
-				if dir := check.IsDirective(directives, val); dir == nil { // check if it is a valid directive
+			} else { // if it is not valid mnemonic, it can be a directive
+				if check.IsDirective(directives, lowerCaseVal) == nil { // check if it is a valid directive
 					// TODO adjust logic for org, db and ds
 					if val != "org" {
 						// if (val == "db" || val == "ds") && check.IsDecimalData(ml["op1"], 8) {
@@ -211,26 +221,150 @@ func main() {
 					infoLogger.Printf("-> Valid Directive\n")
 					continue
 				}
-				outLogger.Fatalf("Invalid mnemonic at line %d\n", i+1)
+				infoLogger.Printf("Invalid mnemonic %q at line %d\n", ml["mnemonic"], i+1)
+				errorText = append(errorText, fmt.Sprintf("At line %d: invalid mnemonic %q", i+1, ml["mnemonic"]))
+				numErrors++
 			}
 		}
 	}
 	infoLogger.Printf("\n#Listing addresses:\n")
 	for i, val := range mnemonicAdress {
-		infoLogger.Printf("%d. %d to %d -> %s\n", i+1, val.Start, val.End, val.Name)
+		infoLogger.Printf("%d. %d to %d -> %Xh to %Xh -> %s\n", i+1, val.Start, val.End, val.Start, val.End, val.Name)
 	}
 	infoLogger.Printf("\n#Listing labels:\n")
 	for i, val := range labels {
 		infoLogger.Printf("%d. %xh -> %s\n", i+1, val.Address, val.Name)
 	}
 
-	infoLogger.Printf("\nQuickly testing function\n")
-	a, b := check.GetBinaryString("0X04")
-	if b != nil {
-		outLogger.Fatalf(b.Error())
-		fmt.Println(b.Error())
-	}
-	infoLogger.Printf("Returned value -> %v\n", a)
-	fmt.Printf("Returned value -> %v\n", a)
+	infoLogger.Printf("\n#Now checking operands and translating into machine code\n")
 
+	for _, val := range mnemonicAdress {
+		infoLogger.Printf("Checking line %d...", val.Nline)
+		lowerCaseValName := strings.ToLower(val.Name)
+		now := cmd[lowerCaseValName] // mnemonic whom operand is being analyzed
+		switch now.Translator {
+		case 1:
+			err := translate.Opcode(linesMatched[val.Nline]["mnemonic"], linesMatched[val.Nline]["op1"])
+			if err != nil {
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+				numErrors++
+			} else {
+				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, now.Opcode))
+			}
+
+		case 2:
+			code, err := translate.Opcodesss(now.Opcode, linesMatched[val.Nline]["op1"], regsd)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+			} else {
+				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+			}
+
+		case 3:
+			code, err := translate.Opcodeddd(now.Opcode, linesMatched[val.Nline]["op1"], regsd)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+			} else {
+				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+			}
+		case 4:
+			code, err := translate.Opcoderp(now.Opcode, linesMatched[val.Nline]["op1"], regrp)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+			} else {
+				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+			}
+
+		case 5:
+			code, err := translate.Opcoder(now.Opcode, linesMatched[val.Nline]["op1"], regr)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+			} else {
+				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+			}
+
+		case 6:
+			code, err := translate.Opcodeccc(now.Opcode, linesMatched[val.Nline]["op1"])
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+			} else {
+				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+			}
+
+		case 7:
+			code, err := translate.Opcodedddsss(now.Opcode, linesMatched[val.Nline]["op1"], linesMatched[val.Nline]["op2"], regsd)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err))
+			} else {
+				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+			}
+
+		case 8:
+			code, err := translate.Opcodedata(now.Opcode, linesMatched[val.Nline]["op1"], labels)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+			} else {
+				for i := val.Start; i <= val.End; i++ {
+					outText = append(outText, fmt.Sprintf("%X    %s\n", i, code[i-val.Start]))
+				}
+			}
+
+		case 9:
+			code, err := translate.Opcodeddddata(now.Opcode, linesMatched[val.Nline]["op1"], linesMatched[val.Nline]["op2"], labels, regsd)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
+			} else {
+				for i := val.Start; i <= val.End; i++ {
+					outText = append(outText, fmt.Sprintf("%X    %s\n", i, code[i-val.Start]))
+				}
+			}
+
+		case 10:
+			code, err := translate.Opcodelhdata(now.Opcode, linesMatched[val.Nline]["op1"], labels)
+			// log.Printf("Called by %q at line %d", val.Name, val.Nline)
+			// log.Printf("Code = %v\n", code)
+			// log.Printf("Err = %v\n", err)
+			if err != nil {
+				numErrors++
+				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err))
+			} else {
+				for i := val.Start; i <= val.End; i++ {
+					// log.Printf("Address = %d, Value = %s", i, code[i-val.Start])
+					outText = append(outText, fmt.Sprintf("%X    %s\n", i, code[i-val.Start]))
+				}
+			}
+		default:
+			outText = append(outText, "Translator not found\n")
+		}
+
+	}
+
+	if numErrors > 0 {
+		c := "s"
+		if numErrors < 2 {
+			c = ""
+		}
+		infoLogger.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
+		log.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
+		for _, val := range errorText {
+			outLogger.Printf("%s", val)
+		}
+	} else {
+		infoLogger.Printf("\nCode successfully compiled. No errors found.")
+		log.Printf("\nCode successfully compiled. No errors found.")
+		for _, val := range outText {
+			outLogger.Printf("%s", val)
+		}
+	}
+	// for _, val := range outText {
+	// 	outLogger.Printf("%v", val)
+	// }
 }

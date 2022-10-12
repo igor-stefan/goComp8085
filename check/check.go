@@ -113,25 +113,21 @@ func IsValidRegister(a string) bool {
 	return false
 }
 
-func IsValidLabel(v []models.Label, s string) (err error) {
+func IsValidLabel(v []models.Label, s string) (idx int) {
 	a := strings.ToLower(s)
-	f1 := false
-	err = nil
+	idx = -1
 	for i := 0; i < len(v); i++ {
-		if v[i].Name == a {
-			f1 = true
+		if strings.ToLower(v[i].Name) == a {
+			idx = i
 			break
 		}
-	}
-	if !f1 {
-		err = fmt.Errorf("couldn't identify %q as label", s)
 	}
 	return
 }
 
 func IsValidData(a string, v []models.Label, bitSize int) (err error) {
 	f1, f2, f3, f4, f5 := false, false, false, false, false
-	f1 = IsValidLabel(v, a) == nil
+	f1 = IsValidLabel(v, a) > -1
 	f2 = IsBinaryData(a, bitSize) == nil
 	f3 = IsDecimalData(a, bitSize) == nil
 	f4 = IsHexData(a, bitSize) == nil
@@ -163,7 +159,7 @@ func GetIntegerValue(a string, hasToFit int) (x int) {
 	return x
 }
 
-func GetBinaryString(s string) (ret string, err error) {
+func GetBinaryString(s string, bitSize int) (ret string, err error) {
 	s = strings.ToLower(s)
 	err = nil
 	ret = ""
@@ -181,9 +177,15 @@ func GetBinaryString(s string) (ret string, err error) {
 			break
 		}
 	}
-	x, err := strconv.ParseUint(s, base, 8)
+	x, err := strconv.ParseUint(s, base, bitSize)
 	if err == nil {
-		ret = fmt.Sprintf("%08b", x)
+		if bitSize == 8 {
+			ret = fmt.Sprintf("%08b", x)
+		} else if bitSize == 16 {
+			ret = fmt.Sprintf("%016b", x)
+		} else {
+			err = fmt.Errorf("size of bit size which is arg to this function is invalid.\nplease use 16 or 8")
+		}
 	}
 	return
 }
