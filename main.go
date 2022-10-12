@@ -22,6 +22,28 @@ const CMD_SIZE = int(85)
 
 var cmd = make(map[string]models.Instruction, CMD_SIZE)
 var directives = []string{"db", "org", "ds", "equ"}
+var regsd = make(map[string]string, 10)
+var regrp = make(map[string]string, 4)
+var regr = make(map[string]string, 2)
+
+func init() {
+	// initialize Regr map
+	regr["b"] = "0"
+	regr["d"] = "1"
+
+	// initialize Regrp map
+	regrp["b"] = "00"
+	regrp["d"] = "01"
+	regrp["h"] = "10"
+	regrp["sp"] = "11"
+
+	// initialize Regsd map
+	regs := []string{"b", "c", "d", "e", "h", "l", "psw", "sp", "m", "a"}
+	values := []string{"000", "001", "010", "011", "100", "101", "110", "110", "110", "111"}
+	for i := 0; i < len(regs); i++ {
+		regsd[regs[i]] = values[i]
+	}
+}
 
 func main() {
 	// check if it has a file to be compiled
@@ -44,6 +66,8 @@ func main() {
 
 	infoLogger := log.New(f1, "", 0)
 	outLogger := log.New(f2, "", 0)
+
+	outLogger.Printf("Mapa reg r -> %v", regr)
 
 	pattternsFile, err := os.Open("patterns.txt") //get all patterns
 	if err != nil {
@@ -74,7 +98,8 @@ func main() {
 		cmdSize, _ := strconv.Atoi(linSplited[1])
 		cmdName := linSplited[0]
 		cmdOpcode := linSplited[2]
-		cmd[cmdName] = models.Instruction{Opcode: cmdOpcode, Size: cmdSize}
+		cmdTranslator, _ := strconv.Atoi(linSplited[3])
+		cmd[cmdName] = models.Instruction{Opcode: cmdOpcode, Size: cmdSize, Translator: cmdTranslator}
 	}
 	for k, val := range cmd {
 		fmt.Printf("%s -> %v\n", k, val)
@@ -149,7 +174,8 @@ func main() {
 			infoLogger.Printf("-> Empty Line\n")
 			continue
 		}
-		if val, ok := ml["label"]; ok {
+		val, hasLabel := ml["label"]
+		if hasLabel {
 			labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[:len(val)-1]})
 			infoLogger.Printf("-> Valid Label\n")
 		}
@@ -158,12 +184,27 @@ func main() {
 				mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + val1.Size - 1, Nline: i, Name: val})
 				mark += val1.Size
 				infoLogger.Printf("-> Valid Mnemonic\n")
-			} else {
-				if dir := check.IsDirective(directives, val); dir {
-					mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
-					if dir && val == "org" && check.IsValidAddress(ml["op1"], labels) {
+			} else { // If it is not valid mnemonic, it can be a directive
+				if dir := check.IsDirective(directives, val); dir == nil { // check if it is a valid directive
+					// TODO adjust logic for org, db and ds
+					if val != "org" {
+						// if (val == "db" || val == "ds") && check.IsDecimalData(ml["op1"], 8) {
+						// 	nBytes, err := strconv.Atoi(ml["op1"])
+						// 	if err != nil {
+						// 		outLogger.Fatalln("db or ds directive number of bytes conversion from str to int failed")
+						// 	}
+						// 	mark += nBytes
+						// 	} else {
+						// 		outLogger.Fatalln("db or ds directive number of bytes specified is too large or is invalid")
+						// 	}
+						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
+					}
+					if val == "org" && check.IsValidData(ml["op1"], labels, 16) == nil {
+						if hasLabel {
+							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
+						}
 						mark = check.GetIntegerValue(ml["op1"], 16)
-						infoLogger.Printf("-> Memory Address changed by org directive -> New address is %d (base 10)", mark)
+						infoLogger.Printf("-> Memory Address changed by org directive -> New address is 0x%X (%d in base 10)", mark, mark)
 					} else {
 						mark++
 					}
@@ -184,5 +225,12 @@ func main() {
 	}
 
 	infoLogger.Printf("\nQuickly testing function\n")
-	infoLogger.Printf("Returned value -> %v\n", check.IsHexData("0xff5", 8))
+	a, b := check.GetBinaryString("0X04")
+	if b != nil {
+		outLogger.Fatalf(b.Error())
+		fmt.Println(b.Error())
+	}
+	infoLogger.Printf("Returned value -> %v\n", a)
+	fmt.Printf("Returned value -> %v\n", a)
+
 }

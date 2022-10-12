@@ -14,6 +14,7 @@ type Mnemonic struct {
 }
 
 type Instruction struct {
-	Size   int
-	Opcode string
+	Size       int
+	Opcode     string
+	Translator int
 }
