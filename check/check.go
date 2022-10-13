@@ -40,96 +40,46 @@ func IsDirective(a []string, s string) (err error) {
 	return
 }
 
-func IsHexData(s string, hasToFit int) (err error) {
+func IsValidHexData(s string, hasToFit int) (err error) {
 	a := strings.ToLower(s)
-	f1, f2 := false, false
+	a = CutStringForParse(a)
 	err = nil
-	var err1, err2 error = nil, nil
-	if strings.HasPrefix(a, "0x") {
-		if _, err1 = strconv.ParseUint(a[2:], 16, hasToFit); err1 == nil {
-			f1 = true
-		} else {
-			err1 = GetError(err1.(*strconv.NumError), err1, s, hasToFit)
-		}
-	} else if strings.HasSuffix(a, "h") {
-		if _, err2 = strconv.ParseUint(a[0:len(a)-1], 16, hasToFit); err2 == nil {
-			f2 = true
-		} else {
-			err2 = GetError(err2.(*strconv.NumError), err2, s, hasToFit)
-		}
-	}
-	if !f1 && !f2 {
-		err = fmt.Errorf("%s. %s", err1, err2)
+	_, err = strconv.ParseUint(a, 16, hasToFit)
+	if err != nil {
+		err = GetError(err.(*strconv.NumError), err, s, hasToFit)
 	}
 	return
 }
 
-func IsOctalData(s string, hasToFit int) (err error) {
+func IsValidOctalData(s string, hasToFit int) (err error) {
 	a := strings.ToLower(s)
+	a = CutStringForParse(a)
 	err = nil
-	var err1, err2 error = nil, nil
-	f1, f2 := false, false
-	if strings.HasSuffix(a, "o") {
-		if _, err1 = strconv.ParseUint(a[0:len(a)-1], 8, hasToFit); err1 == nil {
-			f1 = true
-		} else {
-			err1 = GetError(err1.(*strconv.NumError), err1, s, hasToFit)
-		}
-	} else if strings.HasSuffix(a, "q") {
-		if _, err2 = strconv.ParseUint(a[0:len(a)-1], 8, hasToFit); err2 == nil {
-			f2 = true
-		} else {
-			err2 = GetError(err2.(*strconv.NumError), err2, s, hasToFit)
-		}
-	}
-	if !f1 && !f2 {
-		err = fmt.Errorf("%s. %s", err1, err2)
+	_, err = strconv.ParseUint(a, 8, hasToFit)
+	if err != nil {
+		err = GetError(err.(*strconv.NumError), err, s, hasToFit)
 	}
 	return
 }
 
-func IsDecimalData(s string, hasToFit int) (err error) {
+func IsValidDecimalData(s string, hasToFit int) (err error) {
 	a := strings.ToLower(s)
+	a = CutStringForParse(a)
 	err = nil
-	var err1, err2 error = nil, nil
-	f1, f2 := false, false
-	if strings.HasSuffix(a, "d") {
-		if _, err1 = strconv.ParseUint(a[0:len(a)-1], 10, hasToFit); err1 == nil {
-			f1 = true
-		} else {
-			err1 = GetError(err1.(*strconv.NumError), err1, s, hasToFit)
-		}
-	} else if _, err2 = strconv.ParseUint(a, 10, hasToFit); err2 == nil {
-		f2 = true
-	} else {
-		err2 = GetError(err2.(*strconv.NumError), err2, s, hasToFit)
-	}
-	if !f1 && !f2 {
-		err = fmt.Errorf("%s. %s", err1, err2)
+	_, err = strconv.ParseUint(a, 10, hasToFit)
+	if err != nil {
+		err = GetError(err.(*strconv.NumError), err, s, hasToFit)
 	}
 	return
 }
 
-func IsBinaryData(s string, hasToFit int) (err error) {
+func IsValidBinaryData(s string, hasToFit int) (err error) {
 	a := strings.ToLower(s)
+	a = CutStringForParse(a)
 	err = nil
-	var err1, err2 error = nil, nil
-	f1, f2 := false, false
-	if strings.HasPrefix(a, "0b") {
-		if _, err1 = strconv.ParseUint(a[2:], 2, hasToFit); err1 == nil {
-			f1 = true
-		} else {
-			err1 = GetError(err1.(*strconv.NumError), err1, s, hasToFit)
-		}
-	} else if strings.HasSuffix(a, "b") {
-		if _, err2 = strconv.ParseUint(a[0:len(a)-1], 2, hasToFit); err2 == nil {
-			f2 = true
-		} else {
-			err2 = GetError(err2.(*strconv.NumError), err2, s, hasToFit)
-		}
-	}
-	if !f1 && !f2 {
-		err = fmt.Errorf("%s. %s", err1, err2)
+	_, err = strconv.ParseUint(a, 2, hasToFit)
+	if err != nil {
+		err = GetError(err.(*strconv.NumError), err, s, hasToFit)
 	}
 	return
 }
@@ -161,13 +111,13 @@ func IsValidData(s string, v []models.Label, bitSize int) (err error) {
 	a := strings.ToLower(s)
 	err = nil
 	if regh.MatchString(a) {
-		err = IsHexData(a, bitSize)
+		err = IsValidHexData(s, bitSize)
 	} else if regb.MatchString(a) {
-		err = IsBinaryData(a, bitSize)
+		err = IsValidBinaryData(s, bitSize)
 	} else if rego.MatchString(a) {
-		err = IsOctalData(a, bitSize)
+		err = IsValidOctalData(s, bitSize)
 	} else if regd.MatchString(a) {
-		err = IsDecimalData(a, bitSize)
+		err = IsValidDecimalData(s, bitSize)
 	} else if regl.MatchString(a) && IsValidLabel(v, a) > -1 {
 		err = nil
 	} else {

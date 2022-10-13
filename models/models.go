@@ -18,3 +18,8 @@ type Instruction struct {
 	Opcode     string
 	Translator int
 }
+
+type Output struct {
+	Addr   int
+	Opcode string
+}

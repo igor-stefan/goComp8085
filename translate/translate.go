@@ -8,6 +8,9 @@ import (
 	"github.com/igor-stefan/compiladorAssembly8085/models"
 )
 
+const ADDRESS_DATA_SIZE int = 16
+const VALUE_DATA_SIZE int = 8
+
 func Opcodesss(opcode string, operand string, regmap map[string]string) (ret string, err error) {
 	a := strings.ToLower(operand)
 	ret = ""
@@ -33,15 +36,13 @@ func Opcodeddd(opcode string, operand string, regmap map[string]string) (ret str
 }
 
 func Opcodedddsss(opcode string, operand1 string, operand2 string, regmap map[string]string) (ret string, err error) {
-	a := strings.ToLower(operand1)
-	b := strings.ToLower(operand2)
 	ret = ""
 	err = nil
-	var f1 bool = check.IsValidRegister(a)
-	var f2 bool = check.IsValidRegister(b)
+	var f1 bool = check.IsValidRegister(operand1)
+	var f2 bool = check.IsValidRegister(operand2)
 	if f1 && f2 {
-		opcode = strings.Replace(opcode, "DDD", regmap[a], 1)
-		ret = strings.Replace(opcode, "SSS", regmap[b], 1)
+		opcode = strings.Replace(opcode, "DDD", regmap[strings.ToLower(operand1)], 1)
+		ret = strings.Replace(opcode, "SSS", regmap[strings.ToLower(operand2)], 1)
 	} else {
 		if !f1 && !f2 {
 			err = fmt.Errorf("registers %q and %q are invalid. please use registers A through E, H, L or M", operand1, operand2)
@@ -109,16 +110,14 @@ func Opcodeccc(opcode string, operand string) (ret string, err error) {
 }
 
 func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models.Label, regmap map[string]string) (ret [2]string, err error) {
-	a := strings.ToLower(operand1)
-	b := strings.ToLower(operand2)
 	ret[0] = ""
 	ret[1] = ""
-	var f1 bool = check.IsValidRegister(a)
-	err = check.IsValidData(b, lbl, 8)
+	var f1 bool = check.IsValidRegister(operand1)
+	err = check.IsValidData(operand2, lbl, VALUE_DATA_SIZE)
 	var f2 bool = err == nil
 	if f1 && f2 {
-		ret[0] = strings.Replace(opcode, "DDD", regmap[a], 1)
-		ret[1], _ = check.GetBinaryString(b, 8, lbl)
+		ret[0] = strings.Replace(opcode, "DDD", regmap[strings.ToLower(operand1)], 1)
+		ret[1], _ = check.GetBinaryString(operand2, VALUE_DATA_SIZE, lbl)
 	} else {
 		if !f1 && !f2 {
 			err = fmt.Errorf("register %q and data %q are both invalid. please use registers A through E, H, L or M. %s", operand1, operand2, err)
@@ -132,14 +131,13 @@ func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models
 }
 
 func Opcodelhdata(opcode string, operand1 string, lbl []models.Label) (ret [3]string, err error) {
-	a := strings.ToLower(operand1)
 	ret[0] = ""
 	ret[1] = ""
 	ret[2] = ""
-	err = check.IsValidData(a, lbl, 16)
+	err = check.IsValidData(strings.ToLower(operand1), lbl, ADDRESS_DATA_SIZE)
 	f1 := err == nil
 	if f1 {
-		temp, _ := check.GetBinaryString(a, 16, lbl)
+		temp, _ := check.GetBinaryString(operand1, ADDRESS_DATA_SIZE, lbl)
 		ret[0] = opcode
 		ret[1] = temp[8:16]
 		ret[2] = temp[0:8]
@@ -150,13 +148,12 @@ func Opcodelhdata(opcode string, operand1 string, lbl []models.Label) (ret [3]st
 }
 
 func Opcodedata(opcode string, operand1 string, lbl []models.Label) (ret [2]string, err error) {
-	a := strings.ToLower(operand1)
 	ret[0] = ""
 	ret[1] = ""
-	err = check.IsValidData(a, lbl, 8)
+	err = check.IsValidData(strings.ToLower(operand1), lbl, VALUE_DATA_SIZE)
 	f1 := err == nil
 	if f1 {
-		temp, _ := check.GetBinaryString(a, 8, lbl)
+		temp, _ := check.GetBinaryString(operand1, VALUE_DATA_SIZE, lbl)
 		ret[0] = opcode
 		ret[1] = temp
 	} else {

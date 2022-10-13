@@ -29,9 +29,9 @@ var regsd = make(map[string]string, 10)
 var regrp = make(map[string]string, 4)
 var regr = make(map[string]string, 2)
 
-var outText []string   // all lines of compiled code
-var errorText []string // all errors generated in compilation time
-var numErrors int = 0  // counter for errors
+var outText []models.Output // all lines of compiled code
+var errorText []string      // all errors generated in compilation time
+var numErrors int = 0       // counter for errors
 
 func init() {
 	// initialize Regr map
@@ -176,7 +176,7 @@ func main() {
 
 	infoLogger.Printf("\n#Now check for mnemonic and label validity\n")
 	for i := 0; i < countLine; i++ { // check mnemonic and label validity
-		if mark > 0xff { // check for address count overflow
+		if mark > 0xffff { // check for address count overflow
 			numErrors++
 			infoLogger.Printf("***** CODE OVERFLOWS MEMORY ***** at line %d\n", i)
 			errorText = append(errorText, fmt.Sprintf("At line %d: Memory overflow detected!\n", i))
@@ -261,7 +261,7 @@ func main() {
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 				numErrors++
 			} else {
-				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, now.Opcode))
+				outText = append(outText, models.Output{Addr: val.Start, Opcode: now.Opcode})
 			}
 
 		case 2:
@@ -270,7 +270,7 @@ func main() {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 			} else {
-				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+				outText = append(outText, models.Output{Addr: val.Start, Opcode: code})
 			}
 
 		case 3:
@@ -279,7 +279,7 @@ func main() {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 			} else {
-				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+				outText = append(outText, models.Output{Addr: val.Start, Opcode: code})
 			}
 		case 4:
 			code, err := translate.Opcoderp(now.Opcode, linesMatched[val.Nline]["op1"], regrp)
@@ -287,7 +287,7 @@ func main() {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 			} else {
-				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+				outText = append(outText, models.Output{Addr: val.Start, Opcode: code})
 			}
 
 		case 5:
@@ -296,7 +296,7 @@ func main() {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 			} else {
-				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+				outText = append(outText, models.Output{Addr: val.Start, Opcode: code})
 			}
 
 		case 6:
@@ -305,7 +305,7 @@ func main() {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 			} else {
-				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+				outText = append(outText, models.Output{Addr: val.Start, Opcode: code})
 			}
 
 		case 7:
@@ -314,7 +314,7 @@ func main() {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err))
 			} else {
-				outText = append(outText, fmt.Sprintf("%X    %s\n", val.Start, code))
+				outText = append(outText, models.Output{Addr: val.Start, Opcode: code})
 			}
 
 		case 8:
@@ -324,7 +324,7 @@ func main() {
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 			} else {
 				for i := val.Start; i <= val.End; i++ {
-					outText = append(outText, fmt.Sprintf("%X    %s\n", i, code[i-val.Start]))
+					outText = append(outText, models.Output{Addr: i, Opcode: code[i-val.Start]})
 				}
 			}
 
@@ -335,7 +335,7 @@ func main() {
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
 			} else {
 				for i := val.Start; i <= val.End; i++ {
-					outText = append(outText, fmt.Sprintf("%X    %s\n", i, code[i-val.Start]))
+					outText = append(outText, models.Output{Addr: i, Opcode: code[i-val.Start]})
 				}
 			}
 
@@ -350,14 +350,16 @@ func main() {
 			} else {
 				for i := val.Start; i <= val.End; i++ {
 					// log.Printf("Address = %d, Value = %s", i, code[i-val.Start])
-					outText = append(outText, fmt.Sprintf("%X    %s\n", i, code[i-val.Start]))
+					outText = append(outText, models.Output{Addr: i, Opcode: code[i-val.Start]})
 				}
 			}
 		default:
-			outText = append(outText, "Translator not found\n")
+			outText = append(outText, models.Output{Addr: -1, Opcode: ""})
 		}
 
 	}
+
+	//TODO check if print with fmt or logger
 
 	if numErrors > 0 {
 		c := "s"
@@ -372,11 +374,13 @@ func main() {
 	} else {
 		infoLogger.Printf("\nCode successfully compiled. No errors found.")
 		log.Printf("\nCode successfully compiled. No errors found.")
+		outLogger.Printf("DEC\tHEX\t\tOPCODE\n")
 		for _, val := range outText {
-			outLogger.Printf("%s", val)
+			if val.Addr == -1 {
+				outLogger.Printf("Translator not found\n")
+			} else {
+				outLogger.Printf("%d\t%X\t\t%s\n", val.Addr, val.Addr, val.Opcode)
+			}
 		}
 	}
-	// for _, val := range outText {
-	// 	outLogger.Printf("%v", val)
-	// }
 }
