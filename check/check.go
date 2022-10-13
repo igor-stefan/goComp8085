@@ -9,11 +9,11 @@ import (
 	"github.com/igor-stefan/compiladorAssembly8085/models"
 )
 
-const reghex string = "^(?:0(?:x|X)){1}[A-Fa-f0-9]+(?:h|H){0}$|^(?:0(?:x|X)){0}[A-Fa-f0-9]+(?:h|H){1}$"
-const regoct string = "^[0-7]+(?:O|o|Q|q){1}$"
-const regdec string = "^\\d+(?:d|D){0,1}$"
-const regbin string = "^(?:0(?:b|B)){0}[0-1]+(?:b|B){1}$|^(?:0(?:b|B)){1}[0-1]+(?:b|B){0}$"
-const reglbl string = "^\\w+$"
+const reghex string = `(?i)(?:\b[a-f0-9]+h{1}\b)|(?:\b(?:0x){1}[a-f0-9]+\b)`
+const regoct string = `(?i)(?:\b[0-7]+(?:o|q){1}\b)`
+const regdec string = `(?i)(?:\b[0-9]+d{1}\b)|\b[0-9]+\b`
+const regbin string = `(?i)(?:\b[0-1]+b{1}\b)|(?:\b(?:0b){1}[0-1]+\b)`
+const reglbl string = `^\w+$`
 
 var regh, rego, regd, regb, regl *regexp.Regexp
 
