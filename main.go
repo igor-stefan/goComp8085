@@ -176,6 +176,11 @@ func main() {
 
 	infoLogger.Printf("\n#Now check for mnemonic and label validity\n")
 	for i := 0; i < countLine; i++ { // check mnemonic and label validity
+		if mark > 0xff { // check for address count overflow
+			numErrors++
+			infoLogger.Printf("***** CODE OVERFLOWS MEMORY ***** at line %d\n", i)
+			errorText = append(errorText, fmt.Sprintf("At line %d: Memory overflow detected!\n", i))
+		}
 		infoLogger.Print("\n")
 		ml := linesMatched[i]
 		infoLogger.Printf("Checking line %d...", i+1)
@@ -183,7 +188,7 @@ func main() {
 			infoLogger.Printf("-> Empty Line\n")
 			continue
 		}
-		val, hasLabel := ml["label"]
+		val, hasLabel := ml["label"] // check for existing label
 		if hasLabel {
 			labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[0 : len(val)-1]})
 			infoLogger.Printf("-> Valid Label\n")
@@ -197,7 +202,7 @@ func main() {
 			} else { // if it is not valid mnemonic, it can be a directive
 				if check.IsDirective(directives, lowerCaseVal) == nil { // check if it is a valid directive
 					// TODO adjust logic for org, db and ds
-					if val != "org" {
+					if lowerCaseVal != "org" {
 						// if (val == "db" || val == "ds") && check.IsDecimalData(ml["op1"], 8) {
 						// 	nBytes, err := strconv.Atoi(ml["op1"])
 						// 	if err != nil {
@@ -209,12 +214,19 @@ func main() {
 						// 	}
 						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
 					}
-					if val == "org" && check.IsValidData(ml["op1"], labels, 16) == nil {
+					if lowerCaseVal == "org" && check.IsValidData(ml["op1"], labels, 16) == nil { // check if is org directive to change address counter
 						if hasLabel {
 							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
 						}
-						mark = check.GetIntegerValue(ml["op1"], 16)
-						infoLogger.Printf("-> Memory Address changed by org directive -> New address is 0x%X (%d in base 10)", mark, mark)
+						uintVal, err := check.GetIntegerValue(ml["op1"], 16, labels)
+						if err == nil {
+							mark = int(uintVal)
+							infoLogger.Printf("-> Memory Address changed by org directive -> New address is 0x%X (%d in base 10)", mark, mark)
+						} else {
+							numErrors++
+							errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", i+1, err))
+							infoLogger.Printf("Error encountered at line %d -> %s\n", i+1, err)
+						}
 					} else {
 						mark++
 					}

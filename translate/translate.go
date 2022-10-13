@@ -113,17 +113,17 @@ func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models
 	b := strings.ToLower(operand2)
 	ret[0] = ""
 	ret[1] = ""
-	err = nil
 	var f1 bool = check.IsValidRegister(a)
-	var f2 bool = check.IsValidData(b, lbl, 8) == nil
+	err = check.IsValidData(b, lbl, 8)
+	var f2 bool = err == nil
 	if f1 && f2 {
 		ret[0] = strings.Replace(opcode, "DDD", regmap[a], 1)
-		ret[1], _ = check.GetBinaryString(b, 8)
+		ret[1], _ = check.GetBinaryString(b, 8, lbl)
 	} else {
 		if !f1 && !f2 {
-			err = fmt.Errorf("register %q and data %q are both invalid. please use registers A through E, H, L or M. data must be in range 0 to 255 inclusive", operand1, operand2)
+			err = fmt.Errorf("register %q and data %q are both invalid. please use registers A through E, H, L or M. %s", operand1, operand2, err)
 		} else if !f2 {
-			err = fmt.Errorf("operand %q is invalid. check syntax and remember that it must fit in 8 bit uinteger (range 0 to 255 inclusive)", operand2)
+			err = fmt.Errorf("operand %q is invalid. %s", operand2, err)
 		} else {
 			err = fmt.Errorf("register %q is invalid. please use registers A through E, H, L or M", operand1)
 		}
@@ -136,18 +136,15 @@ func Opcodelhdata(opcode string, operand1 string, lbl []models.Label) (ret [3]st
 	ret[0] = ""
 	ret[1] = ""
 	ret[2] = ""
-	err = nil
-	var f1 bool = check.IsValidData(a, lbl, 16) == nil
+	err = check.IsValidData(a, lbl, 16)
+	f1 := err == nil
 	if f1 {
-		temp, _ := check.GetBinaryString(a, 16)
-		if idx := check.IsValidLabel(lbl, a); idx > -1 {
-			temp = fmt.Sprintf("%016b", lbl[idx].Address)
-		}
+		temp, _ := check.GetBinaryString(a, 16, lbl)
 		ret[0] = opcode
 		ret[1] = temp[8:16]
 		ret[2] = temp[0:8]
 	} else {
-		err = fmt.Errorf("operand %q is invalid. check syntax. remember that it must fit in 16 bit uinteger", operand1)
+		err = fmt.Errorf("operand %q is invalid. %s", operand1, err)
 	}
 	return
 }
@@ -156,17 +153,14 @@ func Opcodedata(opcode string, operand1 string, lbl []models.Label) (ret [2]stri
 	a := strings.ToLower(operand1)
 	ret[0] = ""
 	ret[1] = ""
-	err = nil
-	var f1 bool = check.IsValidData(a, lbl, 8) == nil
+	err = check.IsValidData(a, lbl, 8)
+	f1 := err == nil
 	if f1 {
-		temp, _ := check.GetBinaryString(a, 8)
-		if idx := check.IsValidLabel(lbl, a); idx > -1 {
-			temp = fmt.Sprintf("%08b", lbl[idx].Address)
-		}
+		temp, _ := check.GetBinaryString(a, 8, lbl)
 		ret[0] = opcode
 		ret[1] = temp
 	} else {
-		err = fmt.Errorf("operand %q is invalid. check syntax.\nremember that it must fit in 16 bit uinteger", operand1)
+		err = fmt.Errorf("operand %q is invalid. %s", operand1, err)
 	}
 	return
 }
