@@ -1,28 +1,34 @@
 #Checking pattern match
 
-Total line count = 19
+Total line count = 23
 
 #Listing all lines and mapped values
 
 1. map[mnemonic:JMP op1:START]
 2. map[label:VALOR: mnemonic:DB op1:10]
 3. map[label:NBITS: mnemonic:DB op1:0]
-4. map[label:START: mnemonic:LDA op1:VALOR]
-5. map[mnemonic:MOV op1:B op2:A]
-6. map[mnemonic:MVI op1:C op2:0]
-7. map[mnemonic:MVI op1:D op2:0xF1]
-8. map[label:LOOP: mnemonic:MOV op1:A op2:D]
-9. map[mnemonic:ANA op1:B]
-10. map[mnemonic:JZ op1:PULA]
-11. map[mnemonic:INR op1:C]
-12. map[label:PULA: mnemonic:MOV op1:A op2:D]
-13. map[mnemonic:RAL]
-14. map[mnemonic:MOV op1:D op2:a]
-15. map[mnemonic:JNC op1:LOOP]
-16. map[mnemonic:MOV op1:A op2:C]
-17. map[mnemonic:STA op1:NBITS]
-18. map[label:chanGE: mnemonic:ORG op1:0XFf1]
-19. map[mnemonic:HLT]
+4. map[label:space mnemonic:equ op1:20]
+5. map[label:RESERVA: mnemonic:ds op1:space]
+6. map[label:zz mnemonic:equ op1:space]
+7. map[label:y mnemonic:equ op1:zz]
+8. map[label:START: mnemonic:LDA op1:VALOR]
+9. map[mnemonic:MOV op1:B op2:A]
+10. map[mnemonic:MVI op1:C op2:0]
+11. map[mnemonic:MVI op1:D op2:0xF1]
+12. map[label:LOOP: mnemonic:MOV op1:A op2:D]
+13. map[mnemonic:ANA op1:B]
+14. map[mnemonic:JZ op1:PULA]
+15. map[mnemonic:INR op1:C]
+16. map[label:PULA: mnemonic:MOV op1:A op2:D]
+17. map[mnemonic:RAL]
+18. map[mnemonic:MOV op1:D op2:a]
+19. map[mnemonic:JNC op1:LOOP]
+20. map[mnemonic:MOV op1:A op2:C]
+21. map[mnemonic:STA op1:NBITS]
+22. map[label:chanGE: mnemonic:ORG op1:0XFf1]
+23. map[mnemonic:HLT]
+
+#Listing labels:
 
 #Now check for mnemonic and label validity
 
@@ -39,16 +45,19 @@ Checking line 3...
 
 Checking line 4...
 -> Valid Label
--> Valid Mnemonic
+-> Valid Directive
 
 Checking line 5...
--> Valid Mnemonic
+-> Valid Label
+-> Valid Directive
 
 Checking line 6...
--> Valid Mnemonic
+-> Valid Label
+-> Valid Directive
 
 Checking line 7...
--> Valid Mnemonic
+-> Valid Label
+-> Valid Directive
 
 Checking line 8...
 -> Valid Label
@@ -77,47 +86,56 @@ Checking line 15...
 -> Valid Mnemonic
 
 Checking line 16...
+-> Valid Label
 -> Valid Mnemonic
 
 Checking line 17...
 -> Valid Mnemonic
 
 Checking line 18...
--> Valid Label
--> Memory Address changed by org directive -> New address is 0xFF1 (4081 in base 10)
--> Valid Directive
+-> Valid Mnemonic
 
 Checking line 19...
+-> Valid Mnemonic
+
+Checking line 20...
+-> Valid Mnemonic
+
+Checking line 21...
+-> Valid Mnemonic
+
+Checking line 22...
+-> Valid Label
+-> Valid Directive
+-> Memory Address changed by org directive -> New address is 0xFF1 (4081 in base 10)
+
+Checking line 23...
 -> Valid Mnemonic
 
 #Listing addresses:
 1. 0 to 2 -> 0h to 2h -> JMP
 2. 3 to 3 -> 3h to 3h -> DB
 3. 4 to 4 -> 4h to 4h -> DB
-4. 5 to 7 -> 5h to 7h -> LDA
-5. 8 to 8 -> 8h to 8h -> MOV
-6. 9 to 10 -> 9h to Ah -> MVI
-7. 11 to 12 -> Bh to Ch -> MVI
-8. 13 to 13 -> Dh to Dh -> MOV
-9. 14 to 14 -> Eh to Eh -> ANA
-10. 15 to 17 -> Fh to 11h -> JZ
-11. 18 to 18 -> 12h to 12h -> INR
-12. 19 to 19 -> 13h to 13h -> MOV
-13. 20 to 20 -> 14h to 14h -> RAL
-14. 21 to 21 -> 15h to 15h -> MOV
-15. 22 to 24 -> 16h to 18h -> JNC
-16. 25 to 25 -> 19h to 19h -> MOV
-17. 26 to 28 -> 1Ah to 1Ch -> STA
-18. 29 to 29 -> 1Dh to 1Dh -> ORG
-19. 4081 to 4081 -> FF1h to FF1h -> HLT
-
-#Listing labels:
-1. 3h -> VALOR
-2. 4h -> NBITS
-3. 5h -> START
-4. Dh -> LOOP
-5. 13h -> PULA
-6. 1Dh -> chanGE
+4. 5 to 5 -> 5h to 5h -> equ
+5. 6 to 26 -> 6h to 1Ah -> ds
+6. 26 to 26 -> 1Ah to 1Ah -> equ
+7. 27 to 27 -> 1Bh to 1Bh -> equ
+8. 28 to 30 -> 1Ch to 1Eh -> LDA
+9. 31 to 31 -> 1Fh to 1Fh -> MOV
+10. 32 to 33 -> 20h to 21h -> MVI
+11. 34 to 35 -> 22h to 23h -> MVI
+12. 36 to 36 -> 24h to 24h -> MOV
+13. 37 to 37 -> 25h to 25h -> ANA
+14. 38 to 40 -> 26h to 28h -> JZ
+15. 41 to 41 -> 29h to 29h -> INR
+16. 42 to 42 -> 2Ah to 2Ah -> MOV
+17. 43 to 43 -> 2Bh to 2Bh -> RAL
+18. 44 to 44 -> 2Ch to 2Ch -> MOV
+19. 45 to 47 -> 2Dh to 2Fh -> JNC
+20. 48 to 48 -> 30h to 30h -> MOV
+21. 49 to 51 -> 31h to 33h -> STA
+22. 52 to 52 -> 34h to 34h -> ORG
+23. 4081 to 4081 -> FF1h to FF1h -> HLT
 
 #Now checking operands and translating into machine code
 Checking line 0...
@@ -157,6 +175,14 @@ Checking line 16...
 Checking line 17...
 -> Ok
 Checking line 18...
+-> Ok
+Checking line 19...
+-> Ok
+Checking line 20...
+-> Ok
+Checking line 21...
+-> Ok
+Checking line 22...
 -> Ok
 
 Code successfully compiled. No errors found.

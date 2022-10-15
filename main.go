@@ -24,6 +24,7 @@ const CMD_SIZE = int(85)   // constant for map size
 
 var cmd = make(map[string]models.Instruction, CMD_SIZE) // all instructions information
 var directives = []string{"db", "org", "ds", "equ"}
+var equTable = make(map[string]int)
 
 // mapping register values
 var regsd = make(map[string]string, 10)
@@ -137,14 +138,12 @@ func main() {
 		}
 		var hasAnyMatch bool = false                    // flag to check if the line has a valid syntax
 		for numPattern, val := range compiledPatterns { // check whitch pattern matches with line
-			if numPattern > 7 {
-				continue
-			}
+
 			names := val.SubexpNames()      // get capture group names
 			matched := val.MatchString(lin) // try to match
 			if matched {
 				hasAnyMatch = true
-				if numPattern > 6 {
+				if numPattern > 8 {
 					m["empty"] = "1"
 					linesMatched[countLine-1] = m
 					continue
@@ -176,6 +175,11 @@ func main() {
 	var labels []models.Label // armazenate all labels
 	var mark int = 0          // marks number of address
 
+	infoLogger.Printf("\n#Listing labels:\n")
+	for i, val := range labels {
+		infoLogger.Printf("%d. %Xh -> %s\n", i+1, val.Address, val.Name)
+	}
+
 	infoLogger.Printf("\n#Now check for mnemonic and label validity\n")
 	for i := 0; i < countLine; i++ { // check mnemonic and label validity
 		if mark > 0xffff { // check for address count overflow
@@ -190,51 +194,108 @@ func main() {
 			infoLogger.Printf("-> Empty Line\n")
 			continue
 		}
+
 		val, hasLabel := ml["label"] // check for existing label
 		if hasLabel {
-			labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[0 : len(val)-1]})
-			infoLogger.Printf("-> Valid Label\n")
+			if l, d := check.IsDuplicateLabel(val[0:len(val)-1], labels); d {
+				numErrors++
+				infoLogger.Printf("-> Redefinition of label found")
+				errorText = append(errorText, fmt.Sprintf("At line %d: Label %q was already defined in line %d\n", i+1, val[0:len(val)-1], l))
+			} else {
+				if ml["mnemonic"] != "equ" {
+					labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[0 : len(val)-1]})
+				} else {
+					labels = append(labels, models.Label{Address: mark, Nline: i, Name: val})
+				}
+				infoLogger.Printf("-> Valid Label\n")
+			}
 		}
+
 		if val, exists := ml["mnemonic"]; exists { // checks if mnemonic exists in line
 			lowerCaseVal := strings.ToLower(val)
-			if val1, valid := cmd[lowerCaseVal]; valid { // check if is an valid mnemonic
+			dir, err := check.IsDirective(directives, lowerCaseVal)
+			val1, valid := cmd[lowerCaseVal]
+			if valid && err != nil { // check if is an valid mnemonic
 				mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + val1.Size - 1, Nline: i, Name: val})
 				mark += val1.Size
 				infoLogger.Printf("-> Valid Mnemonic\n")
-			} else { // if it is not valid mnemonic, it can be a directive
-				if check.IsDirective(directives, lowerCaseVal) == nil { // check if it is a valid directive
-					// TODO adjust logic for org, db and ds
-					if lowerCaseVal != "org" {
-						// if (val == "db" || val == "ds") && check.IsDecimalData(ml["op1"], 8) {
-						// 	nBytes, err := strconv.Atoi(ml["op1"])
-						// 	if err != nil {
-						// 		outLogger.Fatalln("db or ds directive number of bytes conversion from str to int failed")
-						// 	}
-						// 	mark += nBytes
-						// 	} else {
-						// 		outLogger.Fatalln("db or ds directive number of bytes specified is too large or is invalid")
-						// 	}
-						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
-					}
-					if lowerCaseVal == "org" && check.IsValidData(ml["op1"], labels, 16) == nil { // check if is org directive to change address counter
+			} else if valid && err == nil { // if it is not valid mnemonic, it can be a directive
+				infoLogger.Printf("-> Valid Directive\n")
+				var markChanged bool = false
+				switch dir {
+				case "org":
+					if err = check.IsValidData(ml["op1"], labels, 16); err == nil {
 						if hasLabel {
 							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
 						}
 						uintVal, err := check.GetIntegerValue(ml["op1"], 16, labels)
 						if err == nil {
+							markChanged = true
 							mark = int(uintVal)
 							infoLogger.Printf("-> Memory Address changed by org directive -> New address is 0x%X (%d in base 10)", mark, mark)
-						} else {
-							numErrors++
-							errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", i+1, err))
-							infoLogger.Printf("Error encountered at line %d -> %s\n", i+1, err)
 						}
-					} else {
-						mark++
 					}
-					infoLogger.Printf("-> Valid Directive\n")
-					continue
+				case "db":
+					values := strings.Split(ml["op1"], ",")
+					for j := 0; j < len(values); j++ {
+						values[j] = strings.TrimSpace(values[j])
+						if values[j] == "" {
+							continue
+						}
+						err = check.IsValidData(values[j], labels, 8)
+						if err != nil {
+							break
+						}
+					}
+					if err == nil {
+						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + len(values) - 1, Nline: i, Name: val})
+						markChanged = true
+						mark += len(values)
+					}
+				case "ds":
+					if err = check.IsValidData(ml["op1"], labels, 16); err == nil {
+						intVal, isEqu := equTable[strings.ToLower(ml["op1"])]
+						log.Println(ml["op1"], "valid", isEqu)
+						if !isEqu {
+							intVal, err = strconv.Atoi(strings.ToLower(ml["op1"]))
+						}
+						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + intVal, Nline: i, Name: val})
+						markChanged = true
+						mark += intVal
+					}
+				case "equ":
+					log.Println(ml["op1"])
+					if err = check.IsValidData(ml["op1"], labels, 16); err == nil {
+						log.Println(ml["op1"], "valid")
+						intVal, err := strconv.Atoi(ml["op1"])
+						log.Println(ml["op1"], "valid", intVal, err, lowerCaseVal)
+						if err != nil {
+							equTable[strings.ToLower(ml["label"])] = equTable[strings.ToLower(ml["op1"])]
+							err = nil
+						} else {
+							equTable[ml["label"]] = intVal
+						}
+						log.Println(equTable)
+						if check.IsValidData(ml["op1"], labels, 8) == nil {
+							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
+						} else {
+							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + 1, Nline: i, Name: val})
+							mark += 2
+							markChanged = true
+						}
+					}
+				default:
+					panic("directive shouldn't have had a match")
 				}
+				if err != nil {
+					numErrors++
+					errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", i+1, err))
+					infoLogger.Printf("Error encountered at line %d -> %s\n", i+1, err)
+				}
+				if !markChanged {
+					mark++
+				}
+			} else {
 				infoLogger.Printf("Invalid mnemonic %q at line %d\n", ml["mnemonic"], i+1)
 				errorText = append(errorText, fmt.Sprintf("At line %d: invalid mnemonic %q", i+1, ml["mnemonic"]))
 				numErrors++
@@ -244,10 +305,6 @@ func main() {
 	infoLogger.Printf("\n#Listing addresses:\n")
 	for i, val := range mnemonicAdress {
 		infoLogger.Printf("%d. %d to %d -> %Xh to %Xh -> %s\n", i+1, val.Start, val.End, val.Start, val.End, val.Name)
-	}
-	infoLogger.Printf("\n#Listing labels:\n")
-	for i, val := range labels {
-		infoLogger.Printf("%d. %Xh -> %s\n", i+1, val.Address, val.Name)
 	}
 
 	infoLogger.Printf("\n#Now checking operands and translating into machine code\n")
@@ -356,6 +413,14 @@ func main() {
 					outText = append(outText, models.Output{Addr: i, Opcode: code[i-val.Start]})
 				}
 			}
+		case 11:
+			outText = append(outText, models.Output{Addr: -11, Opcode: "11"})
+		case 12:
+			outText = append(outText, models.Output{Addr: -12, Opcode: "12"})
+		case 13:
+			outText = append(outText, models.Output{Addr: -13, Opcode: "13"})
+		case 14:
+			outText = append(outText, models.Output{Addr: -14, Opcode: "14"})
 		default:
 			outText = append(outText, models.Output{Addr: -1, Opcode: ""})
 		}
@@ -389,6 +454,5 @@ func main() {
 			}
 			fmt.Fprintf(output, "\n")
 		}
-
 	}
 }

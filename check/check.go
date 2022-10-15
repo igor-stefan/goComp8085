@@ -25,11 +25,14 @@ func init() {
 	regl = regexp.MustCompile(reglbl)
 }
 
-func IsDirective(a []string, s string) (err error) {
+func IsDirective(a []string, s string) (dir string, err error) {
 	err = nil
+	dir = ""
+	x := strings.ToLower(s)
 	f := false
 	for i := 0; i < len(a); i++ {
-		if s == a[i] {
+		if x == a[i] {
+			dir = x
 			f = true
 			break
 		}
@@ -223,6 +226,20 @@ func GetFormattedBinaryString(x uint64, bitWidth int) (ret string, err error) {
 		ret = fmt.Sprintf("%016b", x)
 	} else {
 		err = fmt.Errorf("size of bit width (%d) is invalid. please choose 16 or 8", bitWidth)
+	}
+	return
+}
+
+func IsDuplicateLabel(s string, a []models.Label) (line int, d bool) {
+	x := strings.ToLower(s)
+	line = -1
+	d = false
+	for i := 0; i < len(a); i++ {
+		if x == strings.ToLower(a[i].Name) {
+			line = a[i].Nline + 1
+			d = true
+			return
+		}
 	}
 	return
 }

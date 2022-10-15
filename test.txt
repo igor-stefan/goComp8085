@@ -1,6 +1,10 @@
 JMP START
 VALOR:     DB 10
 NBITS:    DB 0
+space equ 20
+RESERVA: ds space
+zz equ space
+y equ zz
 START:     LDA VALOR    
         MOV B,A        
         MVI C,0        
