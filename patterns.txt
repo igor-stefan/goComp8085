@@ -5,6 +5,6 @@
 ^\s*(?P<mnemonic>\w+)\s+(?P<op1>\w+)\s*,\s*(?P<op2>\w+)\s*(?:;[\w\s\W]*)?$ - comando,op1,op2,comentario - 4
 ^\s*(?P<mnemonic>\w+)\s+(?P<op1>\w+)\s*(?:;[\w\s\W]*)?$ - comando,op1,comentario - 5
 ^\s*(?P<mnemonic>\w+)\s*(?:;[\w\s\W]*)?$ - comando,comentario - 6
-(?i)^\s*(?P<label>\w+:)\s*(?P<mnemonic>db)\s+(?P<op1>(?:(?:(?:\b[0-7]+(?:o|q){1}\b)|(?:\b[a-f0-9]+h{1}\b)|(?:\b(?:0x){1}[a-f0-9]+\b)|(?:\b[0-1]+b{1}\b)|(?:\b(?:0b){1}[0-1]+\b)|(?:\b[0-9]+d{1}\b)|(?:\b[0-9]+\b))\s*,?\s*){0,8})\s*(?:;[\w\s\W]*)?$ - db directive - 7 
-(?i)^\s*(?P<label>\w+:)\s*(?P<mnemonic>equ)\s+(?P<op1>(?:(?:\b[0-7]+(?:o|q){1}\b)|(?:\b[a-f0-9]+h{1}\b)|(?:\b(?:0x){1}[a-f0-9]+\b)|(?:\b[0-1]+b{1}\b)|(?:\b(?:0b){1}[0-1]+\b)|\b[0-9]+d{1}\b|(?:\b[0-9]+\b)\s*){1})\s*(?:;[\w\s\W]*)?$ - equ directive - 8
-^\s*(;[\w\s\W]*)?$ - comentario - 9
+^\s*(;[\w\s\W]*)?$ - comentario - 7
+(?i)^\s*(?P<label>\w+:)\s*(?P<mnemonic>db)\s+(?P<op1>(?:(?:(?:\b[0-7]+(?:o|q){1}\b)|(?:\b[a-f0-9]+h{1}\b)|(?:\b(?:0x){1}[a-f0-9]+\b)|(?:\b[0-1]+b{1}\b)|(?:\b(?:0b){1}[0-1]+\b)|(?:\b[0-9]+d{1}\b)|(?:\b[0-9]+\b))\s*,?\s*){0,8})\s*(?:;[\w\s\W]*)?$ - db directive - 8 
+(?i)^\s*(?P<label>\w+:)\s*(?P<mnemonic>equ)\s+(?P<op1>(?:(?:\b[0-7]+(?:o|q){1}\b)|(?:\b[a-f0-9]+h{1}\b)|(?:\b(?:0x){1}[a-f0-9]+\b)|(?:\b[0-1]+b{1}\b)|(?:\b(?:0b){1}[0-1]+\b)|\b[0-9]+d{1}\b|(?:\b[0-9]+\b)\s*){1})\s*(?:;[\w\s\W]*)?$ - equ directive - 9

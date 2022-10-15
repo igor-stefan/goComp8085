@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/igor-stefan/compiladorAssembly8085/check"
 	"github.com/igor-stefan/compiladorAssembly8085/models"
@@ -61,18 +62,19 @@ func main() {
 
 	f1, err := os.Create("compilationLog.txt") // create log file
 	if err != nil {
-		panic(err) // throw error if case
+		panic(err)
 	}
 	defer f1.Close() // remember to close
 
 	f2, err := os.Create("machineCode.txt") // create output file
 	if err != nil {
-		panic(err) // throw error if case
+		panic(err)
 	}
 	defer f2.Close() // remember to close
 
 	infoLogger := log.New(f1, "", 0)
-	outLogger := log.New(f2, "", 0)
+	output := tabwriter.NewWriter(f2, 0, 0, 5, ' ', tabwriter.AlignRight)
+	defer output.Flush()
 
 	// outLogger.Printf("Mapa reg r -> %v", regr)
 
@@ -80,7 +82,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error while opening file with patterns, please provide such file")
 	}
-	defer pattternsFile.Close() // remember to close the file after compilation
+	defer pattternsFile.Close() // remember to close the file
 	patternScanner := bufio.NewScanner(pattternsFile)
 	for patternScanner.Scan() {
 		lin := patternScanner.Text()
@@ -91,13 +93,10 @@ func main() {
 	for _, val := range patterns { //compile the Patterns
 		compiledPatterns = append(compiledPatterns, regexp.MustCompile(val))
 	}
-	// for i, val := range compiledPatterns { //print all patterns
-	// 	infoLogger.Printf("%d. %v - %s\n", i, val, indicator[i])
-	// }
 
 	cmdSizeFile, err := os.Open("cmd_size.txt") //open file with instructions, opcode and size
 	if err != nil {
-		log.Fatalln("Error while opening file with instructions, size and opcode, please provide such file")
+		log.Fatalln("Error while opening file with instruction name, size and opcode, please provide such file")
 	}
 	defer cmdSizeFile.Close()                       // remember to close the file after compilation
 	cmdSizeScanner := bufio.NewScanner(cmdSizeFile) // use constructor to create a scanner
@@ -138,6 +137,9 @@ func main() {
 		}
 		var hasAnyMatch bool = false                    // flag to check if the line has a valid syntax
 		for numPattern, val := range compiledPatterns { // check whitch pattern matches with line
+			if numPattern > 7 {
+				continue
+			}
 			names := val.SubexpNames()      // get capture group names
 			matched := val.MatchString(lin) // try to match
 			if matched {
@@ -245,7 +247,7 @@ func main() {
 	}
 	infoLogger.Printf("\n#Listing labels:\n")
 	for i, val := range labels {
-		infoLogger.Printf("%d. %xh -> %s\n", i+1, val.Address, val.Name)
+		infoLogger.Printf("%d. %Xh -> %s\n", i+1, val.Address, val.Name)
 	}
 
 	infoLogger.Printf("\n#Now checking operands and translating into machine code\n")
@@ -254,6 +256,7 @@ func main() {
 		infoLogger.Printf("Checking line %d...", val.Nline)
 		lowerCaseValName := strings.ToLower(val.Name)
 		now := cmd[lowerCaseValName] // mnemonic whom operand is being analyzed
+		errorsNow := numErrors
 		switch now.Translator {
 		case 1:
 			err := translate.Opcode(linesMatched[val.Nline]["mnemonic"], linesMatched[val.Nline]["op1"])
@@ -356,10 +359,12 @@ func main() {
 		default:
 			outText = append(outText, models.Output{Addr: -1, Opcode: ""})
 		}
-
+		if errorsNow != numErrors {
+			infoLogger.Printf("-> Error found\n")
+		} else {
+			infoLogger.Printf("-> Ok\n")
+		}
 	}
-
-	//TODO check if print with fmt or logger
 
 	if numErrors > 0 {
 		c := "s"
@@ -369,18 +374,21 @@ func main() {
 		infoLogger.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
 		log.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
 		for _, val := range errorText {
-			outLogger.Printf("%s", val)
+			fmt.Fprintf(output, "%s", val)
 		}
 	} else {
 		infoLogger.Printf("\nCode successfully compiled. No errors found.")
 		log.Printf("\nCode successfully compiled. No errors found.")
-		outLogger.Printf("DEC\tHEX\t\tOPCODE\n")
+		fmt.Fprintf(output, "%s\t%s\t%s\t", "DEC", "HEX", "OPCODE")
+		fmt.Fprintf(output, "\n")
 		for _, val := range outText {
 			if val.Addr == -1 {
-				outLogger.Printf("Translator not found\n")
+				fmt.Fprintf(output, "Ttl\tnot\tfound\t")
 			} else {
-				outLogger.Printf("%d\t%X\t\t%s\n", val.Addr, val.Addr, val.Opcode)
+				fmt.Fprintf(output, "%d\t0x%X\t%s\t", val.Addr, val.Addr, val.Opcode)
 			}
+			fmt.Fprintf(output, "\n")
 		}
+
 	}
 }
