@@ -127,6 +127,7 @@ func main() {
 	infoLogger.Printf("#Checking pattern match\n\n")
 	for fileScanner.Scan() { // read line by line
 		countLine++
+		infoLogger.Printf("Checking line %d...", countLine)
 		// lin := strings.ToLower(fileScanner.Text())
 		lin := fileScanner.Text()
 		// fmt.Println(strings.TrimRight(lin, "\t ")) // remove white spaces in the right
@@ -158,7 +159,9 @@ func main() {
 		if !hasAnyMatch {
 			numErrors++
 			errorText = append(errorText, fmt.Sprintf("At line %d: Invalid syntax\n", countLine))
-			infoLogger.Printf("Invalid syntax encountered at line %d\n", countLine)
+			infoLogger.Printf("-> Invalid syntax encountered at line %d\n", countLine)
+		} else {
+			infoLogger.Printf("-> Ok\n")
 		}
 	}
 	// handle first encountered error while reading
@@ -174,11 +177,6 @@ func main() {
 	var mnemonicAdress []models.Mnemonic
 	var labels []models.Label // armazenate all labels
 	var mark int = 0          // marks number of address
-
-	infoLogger.Printf("\n#Listing labels:\n")
-	for i, val := range labels {
-		infoLogger.Printf("%d. %Xh -> %s\n", i+1, val.Address, val.Name)
-	}
 
 	infoLogger.Printf("\n#Now check for mnemonic and label validity\n")
 	for i := 0; i < countLine; i++ { // check mnemonic and label validity
@@ -215,11 +213,11 @@ func main() {
 			lowerCaseVal := strings.ToLower(val)
 			dir, err := check.IsDirective(directives, lowerCaseVal)
 			val1, valid := cmd[lowerCaseVal]
-			if valid && err != nil { // check if is an valid mnemonic
+			if valid && err != nil { // check if is an valid mnemonic and not a directive
 				mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + val1.Size - 1, Nline: i, Name: val})
 				mark += val1.Size
 				infoLogger.Printf("-> Valid Mnemonic\n")
-			} else if valid && err == nil { // if it is not valid mnemonic, it can be a directive
+			} else if valid && err == nil { // if it is a valid mnemonic and is a directive
 				infoLogger.Printf("-> Valid Directive\n")
 				var markChanged bool = false
 				switch dir {
@@ -237,45 +235,48 @@ func main() {
 					}
 				case "db":
 					values := strings.Split(ml["op1"], ",")
+					var c int = 0
 					for j := 0; j < len(values); j++ {
 						values[j] = strings.TrimSpace(values[j])
 						if values[j] == "" {
 							continue
 						}
-						err = check.IsValidData(values[j], labels, 8)
-						if err != nil {
-							break
-						}
+						c++
+					}
+					if c > 8 {
+						err = fmt.Errorf("too much values for %q directive. please use at maximum %d", val, 8)
 					}
 					if err == nil {
-						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + len(values) - 1, Nline: i, Name: val})
+						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + c - 1, Nline: i, Name: val})
 						markChanged = true
-						mark += len(values)
+						mark += c
 					}
 				case "ds":
 					if err = check.IsValidData(ml["op1"], labels, 16); err == nil {
 						intVal, isEqu := equTable[strings.ToLower(ml["op1"])]
-						log.Println(ml["op1"], "valid", isEqu)
 						if !isEqu {
 							intVal, err = strconv.Atoi(strings.ToLower(ml["op1"]))
 						}
-						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + intVal, Nline: i, Name: val})
+						if intVal == 0 {
+							if hasLabel {
+								intVal = 1
+							} else {
+								continue
+							}
+						}
+						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + intVal - 1, Nline: i, Name: val})
 						markChanged = true
 						mark += intVal
 					}
 				case "equ":
-					log.Println(ml["op1"])
 					if err = check.IsValidData(ml["op1"], labels, 16); err == nil {
-						log.Println(ml["op1"], "valid")
 						intVal, err := strconv.Atoi(ml["op1"])
-						log.Println(ml["op1"], "valid", intVal, err, lowerCaseVal)
 						if err != nil {
 							equTable[strings.ToLower(ml["label"])] = equTable[strings.ToLower(ml["op1"])]
 							err = nil
 						} else {
 							equTable[ml["label"]] = intVal
 						}
-						log.Println(equTable)
 						if check.IsValidData(ml["op1"], labels, 8) == nil {
 							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
 						} else {
@@ -302,16 +303,26 @@ func main() {
 			}
 		}
 	}
+
+	infoLogger.Printf("\n#Listing labels:\n")
+	infoLogger.Printf("\nLine  Hex Bin Dec -> Name\n")
+	for i, val := range labels {
+		infoLogger.Printf("%d. %Xh %08bb %dd -> %s\n", i+1, val.Address, val.Address, val.Address, val.Name)
+	}
+
 	infoLogger.Printf("\n#Listing addresses:\n")
 	for i, val := range mnemonicAdress {
 		infoLogger.Printf("%d. %d to %d -> %Xh to %Xh -> %s\n", i+1, val.Start, val.End, val.Start, val.End, val.Name)
 	}
 
-	infoLogger.Printf("\n#Now checking operands and translating into machine code\n")
+	infoLogger.Printf("\n#Now checking operands and translating to machine code\n")
 
 	for _, val := range mnemonicAdress {
 		infoLogger.Printf("Checking line %d...", val.Nline)
 		lowerCaseValName := strings.ToLower(val.Name)
+		if lowerCaseValName == "org" {
+			continue
+		}
 		now := cmd[lowerCaseValName] // mnemonic whom operand is being analyzed
 		errorsNow := numErrors
 		switch now.Translator {
@@ -378,7 +389,7 @@ func main() {
 			}
 
 		case 8:
-			code, err := translate.Opcodedata(now.Opcode, linesMatched[val.Nline]["op1"], labels)
+			code, err := translate.Opcodedata(now.Opcode, linesMatched[val.Nline]["op1"], labels, equTable)
 			if err != nil {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
@@ -389,7 +400,7 @@ func main() {
 			}
 
 		case 9:
-			code, err := translate.Opcodeddddata(now.Opcode, linesMatched[val.Nline]["op1"], linesMatched[val.Nline]["op2"], labels, regsd)
+			code, err := translate.Opcodeddddata(now.Opcode, linesMatched[val.Nline]["op1"], linesMatched[val.Nline]["op2"], labels, regsd, equTable)
 			if err != nil {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err.Error()))
@@ -400,27 +411,47 @@ func main() {
 			}
 
 		case 10:
-			code, err := translate.Opcodelhdata(now.Opcode, linesMatched[val.Nline]["op1"], labels)
-			// log.Printf("Called by %q at line %d", val.Name, val.Nline)
-			// log.Printf("Code = %v\n", code)
-			// log.Printf("Err = %v\n", err)
+			code, err := translate.Opcodelhdata(now.Opcode, linesMatched[val.Nline]["op1"], labels, equTable)
 			if err != nil {
 				numErrors++
 				errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, err))
 			} else {
 				for i := val.Start; i <= val.End; i++ {
-					// log.Printf("Address = %d, Value = %s", i, code[i-val.Start])
 					outText = append(outText, models.Output{Addr: i, Opcode: code[i-val.Start]})
 				}
 			}
+
 		case 11:
-			outText = append(outText, models.Output{Addr: -11, Opcode: "11"})
+			opcodes, errors := check.CheckDbDirective(linesMatched[val.Nline], labels, equTable)
+			if len(errors) > 0 {
+				numErrors += len(errors)
+				for i := 0; i < len(errors); i++ {
+					errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", val.Nline+1, errors[i]))
+				}
+			} else {
+				for i := val.Start; i <= val.End; i++ {
+					outText = append(outText, models.Output{Addr: i, Opcode: opcodes[i-val.Start]})
+				}
+			}
+
 		case 12:
-			outText = append(outText, models.Output{Addr: -12, Opcode: "12"})
+			valueOfEquConstant := equTable[strings.ToLower(linesMatched[val.Nline]["label"])]
+			opcode := ""
+			if valueOfEquConstant <= 0xff {
+				opcode, _ = check.GetFormattedBinaryString(uint64(valueOfEquConstant), 8)
+			} else {
+				opcode, _ = check.GetFormattedBinaryString(uint64(valueOfEquConstant), 16)
+			}
+			for i := val.Start; i <= val.End; i++ {
+				var k int = 8 * (i - val.Start)
+				outText = append(outText, models.Output{Addr: i, Opcode: opcode[0+k : 8+k]})
+			}
+
 		case 13:
-			outText = append(outText, models.Output{Addr: -13, Opcode: "13"})
-		case 14:
-			outText = append(outText, models.Output{Addr: -14, Opcode: "14"})
+			for i := val.Start; i <= val.End; i++ {
+				outText = append(outText, models.Output{Addr: i, Opcode: "00000000"})
+			}
+
 		default:
 			outText = append(outText, models.Output{Addr: -1, Opcode: ""})
 		}
@@ -431,6 +462,35 @@ func main() {
 		}
 	}
 
+	infoLogger.Printf("\n\n#Now checking for code segment overlap caused by org directive\n")
+	var overlap bool = false
+	addressesUsed := make([]bool, 0xffff)
+	var warnings []string
+	for _, mnemonic := range mnemonicAdress {
+		for j := mnemonic.Start; j <= mnemonic.End; j++ {
+			if !addressesUsed[j] {
+				addressesUsed[j] = true
+			} else {
+				overlap = true
+				foundLine := false
+				idx := 0
+				for _, k := range mnemonicAdress {
+					for idx = k.Start; idx <= k.End; idx++ {
+						if idx == j {
+							foundLine = true
+							idx = k.Nline
+							break
+						}
+					}
+					if foundLine {
+						break
+					}
+				}
+				warnings = append(warnings, fmt.Sprintf("warning at line %d: segment of code starting after %q directive overlaps segment of code starting at line %d\n", mnemonic.Nline, "org", idx))
+				infoLogger.Printf("-> overlap detected\n")
+			}
+		}
+	}
 	if numErrors > 0 {
 		c := "s"
 		if numErrors < 2 {
@@ -438,12 +498,13 @@ func main() {
 		}
 		infoLogger.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
 		log.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
+		fmt.Fprintf(output, "Compilation failed. %d error%s found.\n", numErrors, c)
 		for _, val := range errorText {
 			fmt.Fprintf(output, "%s", val)
 		}
 	} else {
 		infoLogger.Printf("\nCode successfully compiled. No errors found.")
-		log.Printf("\nCode successfully compiled. No errors found.")
+		log.Printf("Code successfully compiled. No errors found.")
 		fmt.Fprintf(output, "%s\t%s\t%s\t", "DEC", "HEX", "OPCODE")
 		fmt.Fprintf(output, "\n")
 		for _, val := range outText {
@@ -453,6 +514,19 @@ func main() {
 				fmt.Fprintf(output, "%d\t0x%X\t%s\t", val.Addr, val.Addr, val.Opcode)
 			}
 			fmt.Fprintf(output, "\n")
+		}
+	}
+
+	if overlap {
+		c := ""
+		if len(warnings) > 1 {
+			c = "s"
+		}
+		infoLogger.Printf("\nCompilation finished with %d warning%s.", len(warnings), c)
+		log.Printf("Compilation finished with %d warning%s.", len(warnings), c)
+		fmt.Fprintf(output, "\n\n")
+		for _, w := range warnings {
+			fmt.Fprintf(output, "%s", w)
 		}
 	}
 }

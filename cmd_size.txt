@@ -78,7 +78,7 @@ xchg,1,11101011,1
 xra,1,10101SSS,2
 xri,2,11101110,8
 xthl,1,11100011,1
-db,1,00000000,11
-equ,1,00000000,12
-ds,1,00000000,13
-org,1,00000000,14
+db,notrelevant,whatever,11
+equ,notrelevant,whatever,12
+ds,notrelevant,whatever,13
+org,notrelevant,whatever,14

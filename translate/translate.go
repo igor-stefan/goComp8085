@@ -109,7 +109,7 @@ func Opcodeccc(opcode string, operand string) (ret string, err error) {
 	return
 }
 
-func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models.Label, regmap map[string]string) (ret [2]string, err error) {
+func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models.Label, regmap map[string]string, t map[string]int) (ret [2]string, err error) {
 	ret[0] = ""
 	ret[1] = ""
 	var f1 bool = check.IsValidRegister(operand1)
@@ -117,7 +117,7 @@ func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models
 	var f2 bool = err == nil
 	if f1 && f2 {
 		ret[0] = strings.Replace(opcode, "DDD", regmap[strings.ToLower(operand1)], 1)
-		ret[1], _ = check.GetBinaryString(operand2, VALUE_DATA_SIZE, lbl)
+		ret[1], _ = check.GetBinaryString(operand2, VALUE_DATA_SIZE, lbl, t)
 	} else {
 		if !f1 && !f2 {
 			err = fmt.Errorf("register %q and data %q are both invalid. please use registers A through E, H, L or M. %s", operand1, operand2, err)
@@ -130,14 +130,14 @@ func Opcodeddddata(opcode string, operand1 string, operand2 string, lbl []models
 	return
 }
 
-func Opcodelhdata(opcode string, operand1 string, lbl []models.Label) (ret [3]string, err error) {
+func Opcodelhdata(opcode string, operand1 string, lbl []models.Label, t map[string]int) (ret [3]string, err error) {
 	ret[0] = ""
 	ret[1] = ""
 	ret[2] = ""
 	err = check.IsValidData(strings.ToLower(operand1), lbl, ADDRESS_DATA_SIZE)
 	f1 := err == nil
 	if f1 {
-		temp, _ := check.GetBinaryString(operand1, ADDRESS_DATA_SIZE, lbl)
+		temp, _ := check.GetBinaryString(operand1, ADDRESS_DATA_SIZE, lbl, t)
 		ret[0] = opcode
 		ret[1] = temp[8:16]
 		ret[2] = temp[0:8]
@@ -147,13 +147,13 @@ func Opcodelhdata(opcode string, operand1 string, lbl []models.Label) (ret [3]st
 	return
 }
 
-func Opcodedata(opcode string, operand1 string, lbl []models.Label) (ret [2]string, err error) {
+func Opcodedata(opcode string, operand1 string, lbl []models.Label, t map[string]int) (ret [2]string, err error) {
 	ret[0] = ""
 	ret[1] = ""
 	err = check.IsValidData(strings.ToLower(operand1), lbl, VALUE_DATA_SIZE)
 	f1 := err == nil
 	if f1 {
-		temp, _ := check.GetBinaryString(operand1, VALUE_DATA_SIZE, lbl)
+		temp, _ := check.GetBinaryString(operand1, VALUE_DATA_SIZE, lbl, t)
 		ret[0] = opcode
 		ret[1] = temp
 	} else {

@@ -1,10 +1,11 @@
 JMP START
 VALOR:     DB 10
-NBITS:    DB 0
-space equ 20
-RESERVA: ds space
+NBITS:    DB 0, space
+space equ 0
+ds space
 zz equ space
 y equ zz
+kp eQu 255
 START:     LDA VALOR    
         MOV B,A        
         MVI C,0        
@@ -17,7 +18,8 @@ PULA:   MOV A,D
         RAL
         MOV D,a
 JNC LOOP
-        MOV A,C
+        MOV A,c
         STA NBITS
-chanGE:        ORG 0XFf1
+chanGE:        ORG 21h
+        jc change
         HLT

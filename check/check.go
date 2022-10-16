@@ -124,7 +124,7 @@ func IsValidData(s string, v []models.Label, bitSize int) (err error) {
 	} else if regl.MatchString(a) && IsValidLabel(v, a) > -1 {
 		err = nil
 	} else {
-		err = fmt.Errorf("operand %q is invalid", s)
+		err = fmt.Errorf("please tell me what the fuck %q is", s)
 	}
 	return
 }
@@ -146,7 +146,7 @@ func GetIntegerValue(s string, hasToFit int, lbl []models.Label) (x uint64, err 
 	return
 }
 
-func GetBinaryString(a string, bitSize int, lbl []models.Label) (ret string, err error) {
+func GetBinaryString(a string, bitSize int, lbl []models.Label, equTable map[string]int) (ret string, err error) {
 	s := strings.ToLower(a)
 	err = nil
 	ret = ""
@@ -156,7 +156,15 @@ func GetBinaryString(a string, bitSize int, lbl []models.Label) (ret string, err
 	}
 	if base == 20 {
 		idx := IsValidLabel(lbl, a)
-		ret, err = GetFormattedBinaryString(uint64(lbl[idx].Address), bitSize)
+		equVal, isEqu := equTable[strings.ToLower(lbl[idx].Name)]
+		if isEqu {
+			ret, err = GetFormattedBinaryString(uint64(equVal), bitSize)
+		} else {
+			ret, err = GetFormattedBinaryString(uint64(lbl[idx].Address), bitSize)
+		}
+		if idx < 0 {
+			err = fmt.Errorf("couldn't recognize what %q is", a)
+		}
 		return
 	}
 	s = CutStringForParse(s)
@@ -239,6 +247,28 @@ func IsDuplicateLabel(s string, a []models.Label) (line int, d bool) {
 			line = a[i].Nline + 1
 			d = true
 			return
+		}
+	}
+	return
+}
+
+func CheckDbDirective(a map[string]string, lbl []models.Label, t map[string]int) (opcodes []string, err []error) {
+	values := strings.Split(a["op1"], ",")
+	for i := 0; i < len(values); i++ {
+		values[i] = strings.TrimSpace(values[i])
+		if values[i] == "" {
+			continue
+		}
+		possibleError := IsValidData(values[i], lbl, 8)
+		if possibleError != nil {
+			err = append(err, possibleError)
+		} else {
+			opcode, possibleError := GetBinaryString(values[i], 8, lbl, t) // it should never return a error because it is valid data
+			if possibleError != nil {                                      // but just for double check, you know...
+				err = append(err, possibleError)
+			} else {
+				opcodes = append(opcodes, opcode)
+			}
 		}
 	}
 	return
