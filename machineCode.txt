@@ -1,43 +1,6 @@
-     DEC      HEX       OPCODE
-       0      0x0     11000011
-       1      0x1     00001010
-       2      0x2     00000000
-       3      0x3     00001010
-       4      0x4     00000000
-       5      0x5     00000000
-       6      0x6     00000000
-       7      0x7     00000000
-       8      0x8     00000000
-       9      0x9     11111111
-      10      0xA     00111010
-      11      0xB     00000011
-      12      0xC     00000000
-      13      0xD     01000111
-      14      0xE     00001110
-      15      0xF     00000000
-      16     0x10     00010110
-      17     0x11     11110001
-      18     0x12     01111010
-      19     0x13     10100000
-      20     0x14     11001010
-      21     0x15     00011000
-      22     0x16     00000000
-      23     0x17     00001100
-      24     0x18     01111010
-      25     0x19     00010111
-      26     0x1A     01010111
-      27     0x1B     11010010
-      28     0x1C     00010010
-      29     0x1D     00000000
-      30     0x1E     01111001
-      31     0x1F     00110010
-      32     0x20     00000100
-      33     0x21     00000000
-      33     0x21     11011010
-      34     0x22     00100010
-      35     0x23     00000000
-      36     0x24     01110110
+Compilation failed. 1 error found.
+At line 6: Label "spACe" was already defined in line 4
 
-
-warning at line 23: segment of code starting after "org" directive overlaps segment of code starting at line 21
-warning at line 23: segment of code starting after "org" directive overlaps segment of code starting at line 22
+warning at line 21: segment of code starting after "org" directive overlaps segment of code starting at line 1
+warning at line 21: segment of code starting after "org" directive overlaps segment of code starting at line 2
+warning at line 21: segment of code starting after "org" directive overlaps segment of code starting at line 3

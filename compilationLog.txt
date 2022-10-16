@@ -46,11 +46,7 @@ Checking line 22...
 -> Ok
 Checking line 23...
 -> Ok
-Checking line 24...
--> Ok
-Checking line 25...
--> Ok
-Total line count = 25
+Total line count = 23
 
 #Listing all lines and mapped values
 
@@ -59,26 +55,24 @@ Total line count = 25
 3. map[label:NBITS: mnemonic:DB op1:0, space op2:space]
 4. map[label:space mnemonic:equ op1:0]
 5. map[mnemonic:ds op1:space]
-6. map[label:zz mnemonic:equ op1:space]
-7. map[label:y mnemonic:equ op1:zz]
-8. map[label:kp mnemonic:eQu op1:255]
-9. map[label:START: mnemonic:LDA op1:VALOR]
-10. map[mnemonic:MOV op1:B op2:A]
-11. map[mnemonic:MVI op1:C op2:0]
-12. map[mnemonic:MVI op1:D op2:0xF1]
-13. map[label:LOOP: mnemonic:MOV op1:A op2:D]
-14. map[mnemonic:ANA op1:B]
-15. map[mnemonic:JZ op1:PULA]
-16. map[mnemonic:INR op1:C]
-17. map[label:PULA: mnemonic:MOV op1:A op2:D]
-18. map[mnemonic:RAL]
-19. map[mnemonic:MOV op1:D op2:a]
-20. map[mnemonic:JNC op1:LOOP]
-21. map[mnemonic:MOV op1:A op2:c]
-22. map[mnemonic:STA op1:NBITS]
-23. map[label:chanGE: mnemonic:ORG op1:21h]
-24. map[mnemonic:jc op1:change]
-25. map[mnemonic:HLT]
+6. map[label:spACe mnemonic:eQu op1:ffh]
+7. map[label:START: mnemonic:LDA op1:VALOR]
+8. map[mnemonic:MOV op1:B op2:A]
+9. map[mnemonic:MVI op1:C op2:0]
+10. map[mnemonic:MVI op1:D op2:0xF1]
+11. map[label:LOOP: mnemonic:MOV op1:A op2:D]
+12. map[mnemonic:ANA op1:B]
+13. map[mnemonic:JZ op1:PULA]
+14. map[mnemonic:INR op1:C]
+15. map[label:PULA: mnemonic:MOV op1:A op2:D]
+16. map[mnemonic:RAL]
+17. map[mnemonic:MOV op1:D op2:a]
+18. map[mnemonic:JNC op1:LOOP]
+19. map[mnemonic:MOV op1:A op2:c]
+20. map[mnemonic:STA op1:NBITS]
+21. map[label:chanGE: mnemonic:ORG op1:2h]
+22. map[mnemonic:jc op1:change]
+23. map[mnemonic:HLT]
 
 #Now check for mnemonic and label validity
 
@@ -101,45 +95,43 @@ Checking line 5...
 -> Valid Directive
 
 Checking line 6...
--> Valid Label
+-> Redefinition of label found
 -> Valid Directive
 
 Checking line 7...
 -> Valid Label
--> Valid Directive
+-> Valid Mnemonic
 
 Checking line 8...
--> Valid Label
--> Valid Directive
+-> Valid Mnemonic
 
 Checking line 9...
--> Valid Label
 -> Valid Mnemonic
 
 Checking line 10...
 -> Valid Mnemonic
 
 Checking line 11...
+-> Valid Label
 -> Valid Mnemonic
 
 Checking line 12...
 -> Valid Mnemonic
 
 Checking line 13...
--> Valid Label
 -> Valid Mnemonic
 
 Checking line 14...
 -> Valid Mnemonic
 
 Checking line 15...
+-> Valid Label
 -> Valid Mnemonic
 
 Checking line 16...
 -> Valid Mnemonic
 
 Checking line 17...
--> Valid Label
 -> Valid Mnemonic
 
 Checking line 18...
@@ -152,72 +144,59 @@ Checking line 20...
 -> Valid Mnemonic
 
 Checking line 21...
--> Valid Mnemonic
+-> Valid Label
+-> Valid Directive
+-> Memory Address changed by org directive -> New address is 0x2 (2 in base 10)
 
 Checking line 22...
 -> Valid Mnemonic
 
 Checking line 23...
--> Valid Label
--> Valid Directive
--> Memory Address changed by org directive -> New address is 0x21 (33 in base 10)
-
-Checking line 24...
--> Valid Mnemonic
-
-Checking line 25...
 -> Valid Mnemonic
 
 #Listing labels:
 
-Line  Hex Bin Dec -> Name
+ID  Hex Bin Dec -> Name
 1. 3h 00000011b 3d -> VALOR
 2. 4h 00000100b 4d -> NBITS
 3. 6h 00000110b 6d -> space
-4. 7h 00000111b 7d -> zz
-5. 8h 00001000b 8d -> y
-6. 9h 00001001b 9d -> k
-7. Ah 00001010b 10d -> START
-8. 12h 00010010b 18d -> LOOP
-9. 18h 00011000b 24d -> PULA
-10. 22h 00100010b 34d -> chanGE
+4. 8h 00001000b 8d -> START
+5. 10h 00010000b 16d -> LOOP
+6. 16h 00010110b 22d -> PULA
+7. 20h 00100000b 32d -> chanGE
 
 #Listing addresses:
 1. 0 to 2 -> 0h to 2h -> JMP
 2. 3 to 3 -> 3h to 3h -> DB
 3. 4 to 5 -> 4h to 5h -> DB
 4. 6 to 6 -> 6h to 6h -> equ
-5. 7 to 7 -> 7h to 7h -> equ
-6. 8 to 8 -> 8h to 8h -> equ
-7. 9 to 9 -> 9h to 9h -> eQu
-8. 10 to 12 -> Ah to Ch -> LDA
-9. 13 to 13 -> Dh to Dh -> MOV
-10. 14 to 15 -> Eh to Fh -> MVI
-11. 16 to 17 -> 10h to 11h -> MVI
-12. 18 to 18 -> 12h to 12h -> MOV
-13. 19 to 19 -> 13h to 13h -> ANA
-14. 20 to 22 -> 14h to 16h -> JZ
-15. 23 to 23 -> 17h to 17h -> INR
+5. 7 to 7 -> 7h to 7h -> eQu
+6. 8 to 10 -> 8h to Ah -> LDA
+7. 11 to 11 -> Bh to Bh -> MOV
+8. 12 to 13 -> Ch to Dh -> MVI
+9. 14 to 15 -> Eh to Fh -> MVI
+10. 16 to 16 -> 10h to 10h -> MOV
+11. 17 to 17 -> 11h to 11h -> ANA
+12. 18 to 20 -> 12h to 14h -> JZ
+13. 21 to 21 -> 15h to 15h -> INR
+14. 22 to 22 -> 16h to 16h -> MOV
+15. 23 to 23 -> 17h to 17h -> RAL
 16. 24 to 24 -> 18h to 18h -> MOV
-17. 25 to 25 -> 19h to 19h -> RAL
-18. 26 to 26 -> 1Ah to 1Ah -> MOV
-19. 27 to 29 -> 1Bh to 1Dh -> JNC
-20. 30 to 30 -> 1Eh to 1Eh -> MOV
-21. 31 to 33 -> 1Fh to 21h -> STA
-22. 34 to 34 -> 22h to 22h -> ORG
-23. 33 to 35 -> 21h to 23h -> jc
-24. 36 to 36 -> 24h to 24h -> HLT
+17. 25 to 27 -> 19h to 1Bh -> JNC
+18. 28 to 28 -> 1Ch to 1Ch -> MOV
+19. 29 to 31 -> 1Dh to 1Fh -> STA
+20. 32 to 32 -> 20h to 20h -> ORG
+21. 2 to 4 -> 2h to 4h -> jc
+22. 5 to 5 -> 5h to 5h -> HLT
 
 #Now checking operands and translating to machine code
-Checking line 0...
--> Ok
 Checking line 1...
 -> Ok
 Checking line 2...
 -> Ok
 Checking line 3...
 -> Ok
-Checking line 5...
+Checking line 4...
 -> Ok
 Checking line 6...
 -> Ok
@@ -250,18 +229,40 @@ Checking line 19...
 Checking line 20...
 -> Ok
 Checking line 21...
--> Ok
+-> Skiped (org directive)
 Checking line 22...
-Checking line 23...
 -> Ok
-Checking line 24...
+Checking line 23...
 -> Ok
 
 
 #Now checking for code segment overlap caused by org directive
--> overlap detected
--> overlap detected
+Checking line 1...
+Checking line 2...
+Checking line 3...
+Checking line 4...
+Checking line 6...
+Checking line 7...
+Checking line 8...
+Checking line 9...
+Checking line 10...
+Checking line 11...
+Checking line 12...
+Checking line 13...
+Checking line 14...
+Checking line 15...
+Checking line 16...
+Checking line 17...
+Checking line 18...
+Checking line 19...
+Checking line 20...
+Checking line 21...
+Checking line 22...
+-> Overlap detected
+-> Overlap detected
+-> Overlap detected
+Checking line 23...
 
-Code successfully compiled. No errors found.
+Code compiled with error. 1 error found.
 
-Compilation finished with 2 warnings.
+Compilation finished with 3 warnings.

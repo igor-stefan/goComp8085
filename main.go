@@ -195,15 +195,19 @@ func main() {
 
 		val, hasLabel := ml["label"] // check for existing label
 		if hasLabel {
-			if l, d := check.IsDuplicateLabel(val[0:len(val)-1], labels); d {
+			valCorrected := val
+			if strings.ToLower(ml["mnemonic"]) != "equ" {
+				valCorrected = valCorrected[0 : len(valCorrected)-1]
+			}
+			if l, d := check.IsDuplicateLabel(valCorrected, labels); d {
 				numErrors++
 				infoLogger.Printf("-> Redefinition of label found")
-				errorText = append(errorText, fmt.Sprintf("At line %d: Label %q was already defined in line %d\n", i+1, val[0:len(val)-1], l))
+				errorText = append(errorText, fmt.Sprintf("At line %d: Label %q was already defined in line %d\n", i+1, valCorrected, l))
 			} else {
-				if ml["mnemonic"] != "equ" {
-					labels = append(labels, models.Label{Address: mark, Nline: i, Name: val[0 : len(val)-1]})
+				if strings.ToLower(ml["mnemonic"]) != "equ" {
+					labels = append(labels, models.Label{Address: mark, Nline: i, Name: valCorrected})
 				} else {
-					labels = append(labels, models.Label{Address: mark, Nline: i, Name: val})
+					labels = append(labels, models.Label{Address: mark, Nline: i, Name: valCorrected})
 				}
 				infoLogger.Printf("-> Valid Label\n")
 			}
@@ -245,8 +249,7 @@ func main() {
 					}
 					if c > 8 {
 						err = fmt.Errorf("too much values for %q directive. please use at maximum %d", val, 8)
-					}
-					if err == nil {
+					} else {
 						mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + c - 1, Nline: i, Name: val})
 						markChanged = true
 						mark += c
@@ -270,12 +273,12 @@ func main() {
 					}
 				case "equ":
 					if err = check.IsValidData(ml["op1"], labels, 16); err == nil {
-						intVal, err := strconv.Atoi(ml["op1"])
+						intVal, err := check.GetIntegerValue(ml["op1"], 16, labels)
 						if err != nil {
 							equTable[strings.ToLower(ml["label"])] = equTable[strings.ToLower(ml["op1"])]
 							err = nil
 						} else {
-							equTable[ml["label"]] = intVal
+							equTable[strings.ToLower(ml["label"])] = int(intVal)
 						}
 						if check.IsValidData(ml["op1"], labels, 8) == nil {
 							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
@@ -305,7 +308,7 @@ func main() {
 	}
 
 	infoLogger.Printf("\n#Listing labels:\n")
-	infoLogger.Printf("\nLine  Hex Bin Dec -> Name\n")
+	infoLogger.Printf("\nID  Hex Bin Dec -> Name\n")
 	for i, val := range labels {
 		infoLogger.Printf("%d. %Xh %08bb %dd -> %s\n", i+1, val.Address, val.Address, val.Address, val.Name)
 	}
@@ -318,9 +321,10 @@ func main() {
 	infoLogger.Printf("\n#Now checking operands and translating to machine code\n")
 
 	for _, val := range mnemonicAdress {
-		infoLogger.Printf("Checking line %d...", val.Nline)
+		infoLogger.Printf("Checking line %d...", val.Nline+1)
 		lowerCaseValName := strings.ToLower(val.Name)
 		if lowerCaseValName == "org" {
+			infoLogger.Println("-> Skiped (org directive)")
 			continue
 		}
 		now := cmd[lowerCaseValName] // mnemonic whom operand is being analyzed
@@ -455,6 +459,7 @@ func main() {
 		default:
 			outText = append(outText, models.Output{Addr: -1, Opcode: ""})
 		}
+
 		if errorsNow != numErrors {
 			infoLogger.Printf("-> Error found\n")
 		} else {
@@ -463,10 +468,12 @@ func main() {
 	}
 
 	infoLogger.Printf("\n\n#Now checking for code segment overlap caused by org directive\n")
-	var overlap bool = false
 	addressesUsed := make([]bool, 0xffff)
+	var overlap bool = false
 	var warnings []string
+	var lastIdx int = -1
 	for _, mnemonic := range mnemonicAdress {
+		infoLogger.Printf("Checking line %d...", mnemonic.Nline+1)
 		for j := mnemonic.Start; j <= mnemonic.End; j++ {
 			if !addressesUsed[j] {
 				addressesUsed[j] = true
@@ -478,7 +485,17 @@ func main() {
 					for idx = k.Start; idx <= k.End; idx++ {
 						if idx == j {
 							foundLine = true
-							idx = k.Nline
+							for pos := 0; pos < len(outText); pos++ {
+								if outText[pos].Addr == j {
+									for pos1 := pos + 1; pos1 < len(outText); pos1++ {
+										if outText[pos1].Addr == j {
+											outText[pos].Opcode = outText[pos1].Opcode
+											outText[pos1] = models.Output{}
+										}
+									}
+								}
+							}
+							idx = k.Nline + 1
 							break
 						}
 					}
@@ -486,8 +503,12 @@ func main() {
 						break
 					}
 				}
+				if lastIdx == idx {
+					continue
+				}
 				warnings = append(warnings, fmt.Sprintf("warning at line %d: segment of code starting after %q directive overlaps segment of code starting at line %d\n", mnemonic.Nline, "org", idx))
-				infoLogger.Printf("-> overlap detected\n")
+				infoLogger.Printf("-> Overlap detected\n")
+				lastIdx = idx
 			}
 		}
 	}
@@ -497,7 +518,7 @@ func main() {
 			c = ""
 		}
 		infoLogger.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
-		log.Printf("\nCode compiled with error%s. %d error%s found.", c, numErrors, c)
+		log.Printf("Code compiled with error%s. %d error%s found.", c, numErrors, c)
 		fmt.Fprintf(output, "Compilation failed. %d error%s found.\n", numErrors, c)
 		for _, val := range errorText {
 			fmt.Fprintf(output, "%s", val)
@@ -508,6 +529,9 @@ func main() {
 		fmt.Fprintf(output, "%s\t%s\t%s\t", "DEC", "HEX", "OPCODE")
 		fmt.Fprintf(output, "\n")
 		for _, val := range outText {
+			if val.Opcode == "" {
+				continue
+			}
 			if val.Addr == -1 {
 				fmt.Fprintf(output, "Ttl\tnot\tfound\t")
 			} else {
@@ -524,7 +548,7 @@ func main() {
 		}
 		infoLogger.Printf("\nCompilation finished with %d warning%s.", len(warnings), c)
 		log.Printf("Compilation finished with %d warning%s.", len(warnings), c)
-		fmt.Fprintf(output, "\n\n")
+		fmt.Fprintf(output, "\n")
 		for _, w := range warnings {
 			fmt.Fprintf(output, "%s", w)
 		}

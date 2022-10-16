@@ -3,9 +3,7 @@ VALOR:     DB 10
 NBITS:    DB 0, space
 space equ 0
 ds space
-zz equ space
-y equ zz
-kp eQu 255
+spACe eQu ffh
 START:     LDA VALOR    
         MOV B,A        
         MVI C,0        
@@ -20,6 +18,6 @@ PULA:   MOV A,D
 JNC LOOP
         MOV A,c
         STA NBITS
-chanGE:        ORG 21h
+chanGE:        ORG 2h
         jc change
         HLT
