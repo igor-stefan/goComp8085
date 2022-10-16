@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"embed"
 	"fmt"
 	"log"
 	"os"
@@ -34,6 +35,9 @@ var regr = make(map[string]string, 2)
 var outText []models.Output // all lines of compiled code
 var errorText []string      // all errors generated in compilation time
 var numErrors int = 0       // counter for errors
+
+//go:embed core/*
+var files embed.FS
 
 func init() {
 	// initialize Regr map
@@ -79,7 +83,7 @@ func main() {
 
 	// outLogger.Printf("Mapa reg r -> %v", regr)
 
-	pattternsFile, err := os.Open("patterns.txt") //get all patterns from file
+	pattternsFile, err := files.Open("core/patterns.txt") //get all patterns from file
 	if err != nil {
 		log.Fatal("Error while opening file with patterns, please provide such file")
 	}
@@ -95,7 +99,7 @@ func main() {
 		compiledPatterns = append(compiledPatterns, regexp.MustCompile(val))
 	}
 
-	cmdSizeFile, err := os.Open("cmd_size.txt") //open file with instructions, opcode and size
+	cmdSizeFile, err := files.Open("core/cmd_size.txt") //open file with instructions, opcode and size
 	if err != nil {
 		log.Fatalln("Error while opening file with instruction name, size and opcode, please provide such file")
 	}

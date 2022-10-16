@@ -1,6 +1,0 @@
-Compilation failed. 1 error found.
-At line 6: Label "spACe" was already defined in line 4
-
-warning at line 21: segment of code starting after "org" directive overlaps segment of code starting at line 1
-warning at line 21: segment of code starting after "org" directive overlaps segment of code starting at line 2
-warning at line 21: segment of code starting after "org" directive overlaps segment of code starting at line 3
