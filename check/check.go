@@ -124,7 +124,7 @@ func IsValidData(s string, v []models.Label, bitSize int) (err error) {
 	} else if regl.MatchString(a) && IsValidLabel(v, a) > -1 {
 		err = nil
 	} else {
-		err = fmt.Errorf("please tell me what the fuck %q is", s)
+		err = fmt.Errorf("could not recognize %q, please tell me what it is", s)
 	}
 	return
 }

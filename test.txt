@@ -18,6 +18,6 @@ PULA:   MOV A,D
 JNC LOOP
         MOV A,c
         STA NBITS
-chanGE:        ORG 2h
+chanGE:        ORG 12h
         jc change
         HLT

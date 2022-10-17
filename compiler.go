@@ -197,6 +197,7 @@ func main() {
 			continue
 		}
 
+		var dontSum bool = false     // if mnemonic is "equ" doesn't need to upgrade the mark
 		val, hasLabel := ml["label"] // check for existing label
 		if hasLabel {
 			valCorrected := val
@@ -211,7 +212,8 @@ func main() {
 				if strings.ToLower(ml["mnemonic"]) != "equ" {
 					labels = append(labels, models.Label{Address: mark, Nline: i, Name: valCorrected})
 				} else {
-					labels = append(labels, models.Label{Address: mark, Nline: i, Name: valCorrected})
+					labels = append(labels, models.Label{Address: -1, Nline: i, Name: valCorrected})
+					dontSum = true
 				}
 				infoLogger.Printf("-> Valid Label\n")
 			}
@@ -284,13 +286,6 @@ func main() {
 						} else {
 							equTable[strings.ToLower(ml["label"])] = int(intVal)
 						}
-						if check.IsValidData(ml["op1"], labels, 8) == nil {
-							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark, Nline: i, Name: val})
-						} else {
-							mnemonicAdress = append(mnemonicAdress, models.Mnemonic{Start: mark, End: mark + 1, Nline: i, Name: val})
-							mark += 2
-							markChanged = true
-						}
 					}
 				default:
 					panic("directive shouldn't have had a match")
@@ -300,7 +295,7 @@ func main() {
 					errorText = append(errorText, fmt.Sprintf("At line %d: %s\n", i+1, err))
 					infoLogger.Printf("Error encountered at line %d -> %s\n", i+1, err)
 				}
-				if !markChanged {
+				if !markChanged && !dontSum {
 					mark++
 				}
 			} else {
@@ -309,17 +304,6 @@ func main() {
 				numErrors++
 			}
 		}
-	}
-
-	infoLogger.Printf("\n#Listing labels:\n")
-	infoLogger.Printf("\nID  Hex Bin Dec -> Name\n")
-	for i, val := range labels {
-		infoLogger.Printf("%d. %Xh %08bb %dd -> %s\n", i+1, val.Address, val.Address, val.Address, val.Name)
-	}
-
-	infoLogger.Printf("\n#Listing addresses:\n")
-	for i, val := range mnemonicAdress {
-		infoLogger.Printf("%d. %d to %d -> %Xh to %Xh -> %s\n", i+1, val.Start, val.End, val.Start, val.End, val.Name)
 	}
 
 	infoLogger.Printf("\n#Now checking operands and translating to machine code\n")
@@ -360,6 +344,7 @@ func main() {
 			} else {
 				outText = append(outText, models.Output{Addr: val.Start, Opcode: code})
 			}
+
 		case 4:
 			code, err := translate.Opcoderp(now.Opcode, linesMatched[val.Nline]["op1"], regrp)
 			if err != nil {
@@ -443,19 +428,6 @@ func main() {
 			}
 
 		case 12:
-			valueOfEquConstant := equTable[strings.ToLower(linesMatched[val.Nline]["label"])]
-			opcode := ""
-			if valueOfEquConstant <= 0xff {
-				opcode, _ = check.GetFormattedBinaryString(uint64(valueOfEquConstant), 8)
-			} else {
-				opcode, _ = check.GetFormattedBinaryString(uint64(valueOfEquConstant), 16)
-			}
-			for i := val.Start; i <= val.End; i++ {
-				var k int = 8 * (i - val.Start)
-				outText = append(outText, models.Output{Addr: i, Opcode: opcode[0+k : 8+k]})
-			}
-
-		case 13:
 			for i := val.Start; i <= val.End; i++ {
 				outText = append(outText, models.Output{Addr: i, Opcode: "00000000"})
 			}
@@ -471,7 +443,7 @@ func main() {
 		}
 	}
 
-	infoLogger.Printf("\n\n#Now checking for code segment overlap caused by org directive\n")
+	infoLogger.Printf("\n#Now checking for code segment overlap caused by org directive\n")
 	addressesUsed := make([]bool, 0xffff)
 	var overlap bool = false
 	var warnings []string
@@ -516,6 +488,24 @@ func main() {
 			}
 		}
 	}
+
+	infoLogger.Printf("\n#Listing labels:\n")
+	infoLogger.Printf("ID  Hex Bin Dec -> Name\n")
+	var q int = 0
+	for i, val := range labels {
+		_, isEqu := equTable[strings.ToLower(val.Name)]
+		if !isEqu {
+			infoLogger.Printf("%d. %Xh %08bb %dd -> %s\n", i-q+1, val.Address, val.Address, val.Address, val.Name)
+		} else {
+			q++
+		}
+	}
+
+	infoLogger.Printf("\n#Listing addresses:\n")
+	for i, val := range mnemonicAdress {
+		infoLogger.Printf("%d. %dd to %dd -> %Xh to %Xh -> %s\n", i+1, val.Start, val.End, val.Start, val.End, val.Name)
+	}
+
 	if numErrors > 0 {
 		c := "s"
 		if numErrors < 2 {
