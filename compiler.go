@@ -34,6 +34,7 @@ var regr = make(map[string]string, 2)
 
 var outText []models.Output // all lines of compiled code
 var errorText []string      // all errors generated in compilation time
+var warnings []string       // all warnings generated in compilation time
 var numErrors int = 0       // counter for errors
 
 //go:embed core/*
@@ -181,13 +182,13 @@ func main() {
 	var mnemonicAdress []models.Mnemonic
 	var labels []models.Label // armazenate all labels
 	var mark int = 0          // marks number of address
+	var maxMark int = 0
 
 	infoLogger.Printf("\n#Now check for mnemonic and label validity\n")
 	for i := 0; i < countLine; i++ { // check mnemonic and label validity
 		if mark > 0xffff { // check for address count overflow
-			numErrors++
 			infoLogger.Printf("***** CODE OVERFLOWS MEMORY ***** at line %d\n", i)
-			errorText = append(errorText, fmt.Sprintf("At line %d: Memory overflow detected!\n", i))
+			warnings = append(warnings, fmt.Sprintf("At line %d: Memory overflow detected! Address for instruction in this line is greater than %q\n", i, "0xffff"))
 		}
 		infoLogger.Print("\n")
 		ml := linesMatched[i]
@@ -304,6 +305,7 @@ func main() {
 				numErrors++
 			}
 		}
+		maxMark = check.GetMax(maxMark, mark)
 	}
 
 	infoLogger.Printf("\n#Now checking operands and translating to machine code\n")
@@ -444,9 +446,7 @@ func main() {
 	}
 
 	infoLogger.Printf("\n#Now checking for code segment overlap caused by org directive\n")
-	addressesUsed := make([]bool, 0xffff)
-	var overlap bool = false
-	var warnings []string
+	addressesUsed := make([]bool, check.GetMax(0xffff, maxMark)+1)
 	var lastIdx int = -1
 	for _, mnemonic := range mnemonicAdress {
 		infoLogger.Printf("Checking line %d...", mnemonic.Nline+1)
@@ -454,7 +454,6 @@ func main() {
 			if !addressesUsed[j] {
 				addressesUsed[j] = true
 			} else {
-				overlap = true
 				foundLine := false
 				idx := 0
 				for _, k := range mnemonicAdress {
@@ -535,7 +534,7 @@ func main() {
 		}
 	}
 
-	if overlap {
+	if len(warnings) > 0 {
 		c := ""
 		if len(warnings) > 1 {
 			c = "s"

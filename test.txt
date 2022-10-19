@@ -1,9 +1,10 @@
+org fff0h
 JMP START
 VALOR:     DB 10
 NBITS:    DB 0, space
 space equ 0
 ds space
-spACe eQu ffh
+kp eQu ffh
 START:     LDA VALOR    
         MOV B,A        
         MVI C,0        
@@ -12,12 +13,13 @@ LOOP:   MOV A,D
         ANA B
         JZ PULA
         INR C
+        org 0xfff9
 PULA:   MOV A,D
         RAL
         MOV D,a
 JNC LOOP
         MOV A,c
         STA NBITS
-chanGE:        ORG 12h
+chanGE:        ORG 0x455
         jc change
         HLT

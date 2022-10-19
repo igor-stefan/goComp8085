@@ -273,3 +273,10 @@ func CheckDbDirective(a map[string]string, lbl []models.Label, t map[string]int)
 	}
 	return
 }
+
+func GetMax(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
